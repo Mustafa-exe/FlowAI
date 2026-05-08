@@ -442,6 +442,7 @@ function DesktopSidebar({
         {sidebarItems.map((item) => {
           const active = activeNav === item.label;
           const Icon = item.icon;
+          const routeHref = item.label === "Tasks" ? "/dashboard/tasks" : item.label === "Settings" ? "/settings" : null;
           const itemClassName = `group flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
             active
               ? isDark
@@ -453,8 +454,8 @@ function DesktopSidebar({
           }`;
 
           return (
-            item.label === "Tasks" ? (
-              <Link key={item.label} href="/dashboard/tasks" className={itemClassName}>
+            routeHref ? (
+              <Link key={item.label} href={routeHref} className={itemClassName}>
                 <span
                   className={`grid size-9 place-items-center rounded-xl transition ${
                     active
@@ -582,6 +583,7 @@ function MobileSidebar({
               {sidebarItems.map((item) => {
                 const active = activeNav === item.label;
                 const Icon = item.icon;
+                const routeHref = item.label === "Tasks" ? "/dashboard/tasks" : item.label === "Settings" ? "/settings" : null;
                 const itemClassName = `flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
                   active
                     ? isDark
@@ -593,10 +595,10 @@ function MobileSidebar({
                 }`;
 
                 return (
-                  item.label === "Tasks" ? (
+                  routeHref ? (
                     <Link
                       key={item.label}
-                      href="/dashboard/tasks"
+                      href={routeHref}
                       onClick={() => setMobileMenuOpen(false)}
                       className={itemClassName}
                     >

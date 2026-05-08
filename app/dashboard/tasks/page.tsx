@@ -20,7 +20,7 @@ const sidebarItems = [
   { label: "Calendar", icon: CalendarDays, href: "/dashboard/tasks?filter=calendar" },
   { label: "Analytics", icon: ChartColumn, href: "/dashboard/tasks?filter=analytics" },
   { label: "Integrations", icon: Puzzle, href: "/dashboard/tasks?filter=integrations" },
-  { label: "Settings", icon: Settings2, href: "/dashboard/tasks?filter=settings" },
+  { label: "Settings", icon: Settings2, href: "/settings" },
 ];
 
 export default function TasksPage() {

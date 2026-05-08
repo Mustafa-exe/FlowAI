@@ -44,7 +44,7 @@ const sidebarLinks = [
   { label: "Chat", href: "/dashboard/chat", icon: MessageSquareText },
   { label: "Analytics", href: "/dashboard", icon: ChartColumn },
   { label: "Integrations", href: "/dashboard", icon: Puzzle },
-  { label: "Settings", href: "/dashboard", icon: Settings2 },
+  { label: "Settings", href: "/settings", icon: Settings2 },
 ];
 
 export default function CalendarPage() {
