@@ -22,6 +22,8 @@
   --flowai-radius-section: 2rem;
   --color-accent: #2563eb;
   --color-surface-hover: #f1f5f9;
+  --accent: var(--color-accent);
+  --accent-tint: rgba(37, 99, 235, 0.08);
 }
 
 html {
@@ -37,6 +39,8 @@ html[data-theme='dark'] {
 html[data-theme='dark'] {
   --color-accent: #7c6ff7;
   --color-surface-hover: #1c1c21;
+  --accent: var(--color-accent);
+  --accent-tint: rgba(124, 111, 247, 0.12);
 }
 
 body {
@@ -93,6 +97,21 @@ html[data-theme='dark'] ::selection {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Settings nav + theme selection (CSS :has) */
+.settings-nav-item:has(input[type="radio"]:checked) {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-tint);
+}
+
+.theme-card:has(input[type="radio"]:checked) {
+  border: 2px solid var(--accent);
+  background: var(--accent-tint);
+}
+
+.theme-card:has(input[type="radio"]:checked) .checkmark {
+  opacity: 1;
 }
 
 @keyframes task-pulse {
