@@ -57,8 +57,20 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       router.replace("/dashboard");
-    } catch {
-      setError("Google sign-in failed. Please try again.");
+    } catch (err: any) {
+      const msg = err?.message ?? "";
+      const code = err?.code ?? "";
+      if (code === "auth/popup-blocked") {
+        setError("Popup was blocked. Please allow popups for this site and try again.");
+      } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setError("Sign-in was cancelled.");
+      } else if (code === "auth/unauthorized-domain") {
+        setError("This domain is not authorized. Add it in Firebase Console → Authentication → Settings → Authorized domains.");
+      } else if (msg.includes("Cross-Origin-Opener-Policy") || msg.includes("closed")) {
+        setError("Popup was blocked by your browser. Please allow popups and try again.");
+      } else {
+        setError("Google sign-in failed. Please try again or use email/password.");
+      }
     } finally {
       setGoogleLoading(false);
     }
