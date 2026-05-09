@@ -146,7 +146,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-7xl gap-6 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-      <div className="w-[220px] shrink-0">
+      <div className="hidden w-[220px] shrink-0 lg:block">
         <div className="sticky top-6">
           <SettingsNav />
         </div>
@@ -156,15 +156,15 @@ export default function SettingsPage() {
         {/* Sticky top bar */}
         <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-slate-200 bg-[#f8fafc]/85 px-4 pb-4 pt-1 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="mx-auto max-w-[720px]">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-500 dark:text-zinc-500">Settings</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.05em]">Preferences</h1>
+                <h1 className="mt-2 text-2xl font-semibold tracking-[-0.05em] sm:text-3xl">Preferences</h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
                   Manage your account, notifications, and workspace feel.
                 </p>
               </div>
-              <div className="w-[280px] max-w-[45%]">
+              <div className="w-full sm:w-[280px] sm:max-w-[45%]">
                 <SearchBar onDebouncedChange={setQuery} />
               </div>
             </div>
