@@ -4,11 +4,6 @@ import { motion } from "framer-motion";
 import { ArrowUp, Mic, MicOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-declare interface Window {
-  SpeechRecognition: any;
-  webkitSpeechRecognition: any;
-}
-
 export default function ChatInputBar({
   input,
   setInput,
