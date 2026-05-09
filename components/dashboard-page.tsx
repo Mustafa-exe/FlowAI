@@ -24,6 +24,7 @@ import {
   ListTodo,
   LogOut,
   Menu,
+  MessageCircle,
   MoreHorizontal,
   Puzzle,
   Rocket,
@@ -45,12 +46,17 @@ import {
   subscribeToEvents,
   subscribeToAnalytics,
   loadProfile,
+  subscribeToProfile,
   clearSeedTasks,
   type UserProfile,
   type AnalyticsDoc,
 } from "@/lib/firestoreCollections";
 import type { Task as FirestoreTask } from "@/types/task";
 import type { CalendarEvent } from "@/types/calendar";
+import {
+  requestNotificationPermission,
+  scheduleTaskNotifications,
+} from "@/lib/taskNotifications";
 
 type SidebarItem = {
   label: string;
@@ -282,10 +288,9 @@ export function DashboardPage() {
     // Remove any auto-seeded demo tasks silently
     clearSeedTasks(user.uid).catch(() => {});
 
-    // Then enrich with Firestore profile (role, custom name override)
-    loadProfile(user.uid).then((p) => {
+    // Subscribe to profile — updates in real time when settings are saved
+    const unsubProfile = subscribeToProfile(user.uid, (p) => {
       setProfile({
-        // Only use Firestore displayName if it's actually set (not the default "User")
         displayName:
           (p.displayName && p.displayName !== "User" ? p.displayName : null) ||
           user.displayName ||
@@ -304,11 +309,23 @@ export function DashboardPage() {
     const unsubAnalytics = subscribeToAnalytics(user.uid, setAnalytics);
 
     return () => {
+      unsubProfile();
       unsubTasks();
       unsubEvents();
       unsubAnalytics();
     };
   }, [isAuthReady, user]);
+
+  // ── Browser push notifications ────────────────────────────────────────────
+  // Request permission once on mount
+  useEffect(() => {
+    requestNotificationPermission().catch(() => {});
+  }, []);
+
+  // Schedule notifications whenever tasks change
+  useEffect(() => {
+    scheduleTaskNotifications(tasks);
+  }, [tasks]);
 
   // ── Derived overview stats from live data ──────────────────────────────────
   const today = new Date().toISOString().slice(0, 10);
@@ -403,6 +420,20 @@ export function DashboardPage() {
           )}
         </main>
       </div>
+
+      {/* Floating AI Chat button */}
+      <Link
+        href="/dashboard/chat"
+        aria-label="Open AI Chat"
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 ${
+          isDark
+            ? "bg-[#7c6ff7] text-white hover:bg-[#6a5fe6] shadow-[#7c6ff7]/30"
+            : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] shadow-[#2563eb]/30"
+        }`}
+      >
+        <MessageCircle className="size-4" />
+        <span>AI Chat</span>
+      </Link>
     </div>
   );
 }
@@ -995,8 +1026,12 @@ function OverviewSection({ isDark, stats }: { isDark: boolean; stats: StatCard[]
 }
 
 function SummaryCard({ isDark, analytics }: { isDark: boolean; analytics: AnalyticsDoc | null }) {
-  const productivityChange = analytics ? `+${Math.max(0, analytics.productivityScore - 80)}%` : "—";
   const completedCount = analytics?.tasksCompleted ?? 0;
+  const router = useRouter();
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) return null;
+
   return (
     <motion.section
       variants={summaryVariants}
@@ -1021,7 +1056,7 @@ function SummaryCard({ isDark, analytics }: { isDark: boolean; analytics: Analyt
           </span>
 
           <h2 className={`mt-5 text-[clamp(2rem,4vw,3rem)] font-semibold tracking-[-0.05em] ${isDark ? "text-zinc-100" : "text-slate-900"}`}>
-            Here's your day at a glance
+            Here&apos;s your day at a glance
           </h2>
 
           <p className={`mt-4 max-w-3xl text-base leading-8 ${isDark ? "text-zinc-400" : "text-slate-600"}`}>
@@ -1031,6 +1066,7 @@ function SummaryCard({ isDark, analytics }: { isDark: boolean; analytics: Analyt
           <div className="mt-8 flex items-center gap-3">
             <button
               type="button"
+              onClick={() => router.push("/dashboard/chat?prompt=Give+me+AI+suggestions+to+improve+my+productivity+today")}
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
                 isDark
                   ? "border-[#7c6ff7] bg-[#7c6ff7] text-white hover:bg-[#8f84ff]"
@@ -1042,6 +1078,7 @@ function SummaryCard({ isDark, analytics }: { isDark: boolean; analytics: Analyt
 
             <button
               type="button"
+              onClick={() => setDismissed(true)}
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
                 isDark
                   ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"

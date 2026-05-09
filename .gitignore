@@ -2,3 +2,5 @@
 node_modules
 .vercel
 .kiro
+.env.local
+.env*.local

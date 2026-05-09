@@ -10,10 +10,6 @@ import type { IntegrationPrefs } from "@/lib/userPreferences";
 
 const CATALOG = [
   { name: "Google Calendar", description: "Sync tasks as events in real time", isReal: true },
-  { name: "Notion",          description: "Import tasks from Notion databases",      isReal: false },
-  { name: "Slack",           description: "Receive FlowAI alerts in Slack channels", isReal: false },
-  { name: "GitHub",          description: "Link commits and PRs to tasks",           isReal: false },
-  { name: "Linear",          description: "Two-way sync with Linear issues",         isReal: false },
 ] as const;
 
 function StatusBadge({ connected }: { connected: boolean }) {

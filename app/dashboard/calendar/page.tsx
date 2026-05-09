@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Sparkles, X } from "lucide-react";
 import WeekView from "@/components/calendar/WeekView";
 import MonthView from "@/components/calendar/MonthView";
 import AgendaView from "@/components/calendar/AgendaView";
@@ -59,6 +59,51 @@ export default function CalendarPage() {
     type: "meeting" as CalendarEvent["type"],
     description: "",
   });
+
+  // ── AI Schedule state ─────────────────────────────────────────────────────
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleData, setScheduleData] = useState<any>(null);
+  const [scheduleError, setScheduleError] = useState("");
+
+  const handleGenerateSchedule = async () => {
+    if (!user) return;
+    setScheduleLoading(true);
+    setScheduleError("");
+    setScheduleData(null);
+    setScheduleOpen(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/ai/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          date: new Date().toISOString().slice(0, 10),
+          // Pass tasks from client so the server doesn't need Firestore access
+          tasks: tasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            dueDate: t.dueDate,
+            priority: t.priority,
+            status: t.status,
+          })),
+          workingHours: {
+            start: "08:00",
+            end: "18:00",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Schedule generation failed");
+      setScheduleData(data);
+    } catch (err: any) {
+      setScheduleError(err.message ?? "Something went wrong");
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
 
   // Subscribe to Firestore events + tasks
   useEffect(() => {
@@ -194,6 +239,13 @@ export default function CalendarPage() {
             <div className="flex items-center gap-2">
               <ViewSwitcher view={view} onChange={setView} />
               <button
+                onClick={handleGenerateSchedule}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-white"
+              >
+                <Sparkles size={14} />
+                AI Schedule
+              </button>
+              <button
                 onClick={() => setAddModalOpen(true)}
                 className="add-task-btn inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">
                 <Plus size={16} />
@@ -256,6 +308,94 @@ export default function CalendarPage() {
           setSelectedEvent(null);
         }}
       />
+
+      {/* AI Schedule Panel */}
+      <AnimatePresence>
+        {scheduleOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setScheduleOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl border p-6 shadow-2xl ${isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-[var(--color-accent)]" />
+                  <h3 className="text-lg font-semibold">AI Daily Schedule</h3>
+                </div>
+                <button type="button" onClick={() => setScheduleOpen(false)}
+                  className={`rounded-full p-1.5 ${isDark ? "hover:bg-white/10" : "hover:bg-slate-100"}`}>
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {scheduleLoading && (
+                <div className="flex flex-col items-center gap-3 py-10">
+                  <div className="size-8 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
+                  <p className={`text-sm ${isDark ? "text-zinc-400" : "text-slate-500"}`}>Generating your optimized schedule…</p>
+                </div>
+              )}
+
+              {scheduleError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+                  <p className="text-sm text-red-500">{scheduleError}</p>
+                </div>
+              )}
+
+              {scheduleData && !scheduleLoading && (
+                <div className="space-y-3">
+                  <p className={`text-sm ${isDark ? "text-zinc-400" : "text-slate-600"}`}>{scheduleData.summary}</p>
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-slate-400"}`}>
+                    {scheduleData.scheduled_tasks} of {scheduleData.total_tasks} tasks scheduled
+                  </p>
+                  <div className="space-y-2">
+                    {scheduleData.schedule?.map((block: any, i: number) => (
+                      <div key={i} className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
+                        isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
+                      }`}>
+                        <span className={`mt-0.5 shrink-0 text-xs font-mono font-semibold ${isDark ? "text-zinc-400" : "text-slate-500"}`}>
+                          {block.start_time}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{block.title}</p>
+                          {block.description && (
+                            <p className={`text-xs truncate ${isDark ? "text-zinc-500" : "text-slate-400"}`}>{block.description}</p>
+                          )}
+                        </div>
+                        <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          block.type === "break" || block.type === "buffer"
+                            ? isDark ? "bg-zinc-700 text-zinc-400" : "bg-slate-100 text-slate-500"
+                            : block.priority === "High"
+                              ? "bg-rose-500/10 text-rose-500"
+                              : block.priority === "Medium"
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-emerald-500/10 text-emerald-500"
+                        }`}>
+                          {block.type === "break" || block.type === "buffer" ? block.type : (block.priority ?? block.type)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSchedule}
+                    className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white transition"
+                  >
+                    <Sparkles size={14} /> Regenerate
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add Event Modal */}
       <AnimatePresence>

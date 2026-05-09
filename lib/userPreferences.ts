@@ -100,9 +100,30 @@ export async function saveUserPreferences(
   uid: string,
   patch: Partial<UserPreferencesDoc>
 ): Promise<void> {
+  // Save to preferences/workspace
   await setDoc(
     prefsRef(uid),
     { ...patch, updatedAt: new Date().toISOString() },
     { merge: true }
   );
+
+  // Mirror displayName and avatarUrl to profile/info so the dashboard
+  // (which reads users/{uid}/profile/info) stays in sync
+  const profilePatch: Record<string, unknown> = {
+    updatedAt: new Date().toISOString(),
+  };
+  if (patch.general?.displayName !== undefined) {
+    profilePatch.displayName = patch.general.displayName;
+  }
+  if (patch.general?.avatarUrl !== undefined) {
+    profilePatch.avatarUrl = patch.general.avatarUrl;
+  }
+
+  if (Object.keys(profilePatch).length > 1) {
+    await setDoc(
+      doc(db, "users", uid, "profile", "info"),
+      profilePatch,
+      { merge: true }
+    );
+  }
 }

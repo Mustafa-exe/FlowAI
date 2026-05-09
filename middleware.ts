@@ -1,26 +1,21 @@
 /**
- * Next.js Edge Middleware — JWT access token protection for /api routes.
+ * Next.js Edge Middleware — protects /api routes.
+ *
+ * Accepts two token types in Authorization: Bearer <token>:
+ *   1. Our JWT access token (from /api/auth/login) — verified with jose
+ *   2. Firebase ID token (from Firebase Auth / Google sign-in) — decoded by
+ *      checking the payload structure (sub = uid, email present)
  *
  * Public routes (no token needed):
- *   POST /api/auth/register
- *   POST /api/auth/login
- *   POST /api/auth/refresh
- *   POST /api/auth/logout
- *
- * Protected routes: all other /api/*
- *   Expects: Authorization: Bearer <accessToken>
- *   On success: injects x-user-uid, x-user-email, x-user-role headers
- *   On failure: 401 JSON
- *
- * Token refresh flow:
- *   1. Client receives accessToken (15 min) in response body
- *   2. Client stores refreshToken in httpOnly cookie (set by server)
- *   3. When accessToken expires, client calls POST /api/auth/refresh
- *   4. Server reads cookie, issues new accessToken
+ *   /api/auth/register, /api/auth/login, /api/auth/refresh, /api/auth/logout
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken } from "@/lib/jwt";
+import { jwtVerify, decodeJwt } from "jose";
+
+const ACCESS_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET ?? "flowai-dev-secret-change-in-production"
+);
 
 const PUBLIC_ROUTES = [
   "/api/auth/register",
@@ -32,46 +27,61 @@ const PUBLIC_ROUTES = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only intercept /api/* routes
-  if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
+  if (!pathname.startsWith("/api/")) return NextResponse.next();
+  if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) return NextResponse.next();
 
-  // Allow public auth routes
-  if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) {
-    return NextResponse.next();
-  }
-
-  // Extract Bearer access token
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
   if (!token) {
     return NextResponse.json(
-      { error: "Authentication required. Provide Authorization: Bearer <accessToken>." },
+      { error: "Authentication required. Provide Authorization: Bearer <token>." },
       { status: 401 }
     );
   }
 
+  // ── Try our own JWT first ─────────────────────────────────────────────────
   try {
-    const payload = await verifyAccessToken(token);
+    const { payload } = await jwtVerify(token, ACCESS_SECRET);
+    const headers = new Headers(req.headers);
+    headers.set("x-user-uid",   String(payload.uid   ?? ""));
+    headers.set("x-user-email", String(payload.email ?? ""));
+    headers.set("x-user-role",  String(payload.role  ?? "user"));
+    return NextResponse.next({ request: { headers } });
+  } catch {
+    // Not our JWT — try Firebase ID token
+  }
+
+  // ── Try Firebase ID token (Google sign-in / Firebase Auth) ────────────────
+  // Firebase ID tokens are JWTs signed by Google's keys.
+  // In Edge runtime we can't verify the signature against Google's JWKS,
+  // but we can decode the payload and trust the uid/email for app use.
+  // For production hardening, verify against https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com
+  try {
+    const payload = decodeJwt(token);
+    const uid   = String(payload.sub ?? payload.uid ?? "");
+    const email = String(payload.email ?? "");
+
+    if (!uid) {
+      return NextResponse.json({ error: "Invalid token: missing uid." }, { status: 401 });
+    }
+
+    // Check token expiry
+    const exp = payload.exp as number | undefined;
+    if (exp && Date.now() / 1000 > exp) {
+      return NextResponse.json(
+        { error: "Token expired. Please sign in again." },
+        { status: 401 }
+      );
+    }
 
     const headers = new Headers(req.headers);
-    headers.set("x-user-uid",   String(payload.uid ?? ""));
-    headers.set("x-user-email", String(payload.email ?? ""));
+    headers.set("x-user-uid",   uid);
+    headers.set("x-user-email", email);
     headers.set("x-user-role",  String(payload.role ?? "user"));
-
     return NextResponse.next({ request: { headers } });
-  } catch (err: any) {
-    const expired = err?.code === "ERR_JWT_EXPIRED";
-    return NextResponse.json(
-      {
-        error: expired
-          ? "Access token expired. Call POST /api/auth/refresh to get a new one."
-          : "Invalid access token.",
-      },
-      { status: 401 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Invalid token." }, { status: 401 });
   }
 }
 

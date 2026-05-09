@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Clock3, ListTodo, Plus,
-  AlertTriangle, CheckCircle2, SlidersHorizontal,
+  AlertTriangle, CheckCircle2, SlidersHorizontal, Sparkles,
 } from "lucide-react";
 import TaskListView from "@/components/tasks/TaskListView";
 import TaskKanbanView from "@/components/tasks/TaskKanbanView";
@@ -40,6 +40,7 @@ function TasksInner() {
   const [priorityFilter, setPriorityFilter] = useState("All Priorities");
   const [sortBy, setSortBy] = useState("Due Date");
   const [search, setSearch] = useState("");
+  const [reorganizeBanner, setReorganizeBanner] = useState<string | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,6 +100,35 @@ function TasksInner() {
           // Non-fatal — task was saved to Firestore, GCal sync failed silently
           console.warn("Google Calendar sync failed:", err.message);
         });
+      }
+
+      // 3. If High priority, trigger AI reorganization
+      if (taskData.priority === "High") {
+        fetch("/api/ai/reorganize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-uid": user.uid,
+          },
+          body: JSON.stringify({
+            newTaskTitle: taskData.title,
+            newTaskPriority: taskData.priority,
+            newTaskDueDate: taskData.dueDate || undefined,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            const count = data?.reorganized?.length ?? 0;
+            if (count > 0) {
+              setReorganizeBanner(
+                `AI reorganized ${count} task${count === 1 ? "" : "s"} based on new high-priority task`
+              );
+              setTimeout(() => setReorganizeBanner(null), 6000);
+            }
+          })
+          .catch(() => {
+            // Non-fatal — reorganization failed silently
+          });
       }
 
       setModalOpen(false);
@@ -192,6 +222,34 @@ function TasksInner() {
               <ThemeToggle compact />
             </div>
           </div>
+
+          {/* AI Reorganize Banner */}
+          <AnimatePresence>
+            {reorganizeBanner && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className={`mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
+                  isDark
+                    ? "border-[#7c6ff7]/30 bg-[#7c6ff7]/10 text-[#c7bfff]"
+                    : "border-[#2563eb]/20 bg-[#2563eb]/5 text-[#2563eb]"
+                }`}
+              >
+                <Sparkles size={16} className="shrink-0" />
+                <span>{reorganizeBanner}</span>
+                <button
+                  type="button"
+                  onClick={() => setReorganizeBanner(null)}
+                  className="ml-auto text-current opacity-60 hover:opacity-100"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Filters */}
           <div className="mb-4 flex flex-wrap items-center justify-end gap-2">

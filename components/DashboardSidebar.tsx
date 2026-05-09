@@ -6,20 +6,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays, ChartColumn, ChevronLeft, ChevronRight,
   LayoutDashboard, ListTodo, LogOut, MessageSquareText,
-  Puzzle, Settings2, X,
+  Puzzle, RepeatIcon, Settings2, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useThemeMode } from "@/components/theme-provider";
 
 const NAV_ITEMS = [
-  { label: "Dashboard",    href: "/dashboard",           icon: LayoutDashboard },
-  { label: "Tasks",        href: "/dashboard/tasks",     icon: ListTodo },
-  { label: "Calendar",     href: "/dashboard/calendar",  icon: CalendarDays },
-  { label: "Chat",         href: "/dashboard/chat",      icon: MessageSquareText },
-  { label: "Analytics",    href: "/dashboard/analytics", icon: ChartColumn },
-  { label: "Integrations", href: "/dashboard/integrations", icon: Puzzle },
-  { label: "Settings",     href: "/settings",            icon: Settings2 },
+  { label: "Dashboard",    href: "/dashboard",                    icon: LayoutDashboard },
+  { label: "Tasks",        href: "/dashboard/tasks",              icon: ListTodo },
+  { label: "Recurring",    href: "/dashboard/tasks/recurring",    icon: RepeatIcon },
+  { label: "Calendar",     href: "/dashboard/calendar",           icon: CalendarDays },
+  { label: "Chat",         href: "/dashboard/chat",               icon: MessageSquareText },
+  { label: "Analytics",    href: "/dashboard/analytics",          icon: ChartColumn },
+  { label: "Integrations", href: "/dashboard/integrations",       icon: Puzzle },
+  { label: "Settings",     href: "/settings",                     icon: Settings2 },
 ];
 
 const COLLAPSED_KEY = "flowai-sidebar-collapsed";

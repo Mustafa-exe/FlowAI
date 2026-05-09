@@ -126,6 +126,23 @@ export async function loadProfile(uid: string): Promise<UserProfile> {
   }
 }
 
+export function subscribeToProfile(uid: string, cb: (profile: UserProfile) => void): Unsubscribe {
+  return onSnapshot(
+    profileRef(uid),
+    (snap) => {
+      if (!snap.exists()) {
+        cb(DEFAULT_PROFILE);
+        return;
+      }
+      cb({ ...DEFAULT_PROFILE, ...(snap.data() as Partial<UserProfile>) });
+    },
+    (error) => {
+      console.error("Profile listener error:", error.code, error.message);
+      cb(DEFAULT_PROFILE);
+    }
+  );
+}
+
 export async function saveProfile(uid: string, patch: Partial<UserProfile>): Promise<void> {
   await setDoc(profileRef(uid), patch, { merge: true });
 }

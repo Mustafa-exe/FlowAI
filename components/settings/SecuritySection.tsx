@@ -1,9 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, Monitor, ShieldCheck, Upload, X } from "lucide-react";
+import { Lock, Monitor, Upload, X } from "lucide-react";
 import { useState } from "react";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import SkeletonRow from "@/components/ui/SkeletonRow";
 import { useAuth } from "@/components/auth-provider";
 import type { SecurityPrefs } from "@/lib/userPreferences";
@@ -115,22 +114,6 @@ export default function SecuritySection({ isLoading, values, onChange }: Props) 
               </button>
             </div>
           )}
-
-          {/* 2FA — stored in Firestore */}
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-[#16161a]">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="size-5 text-slate-400 dark:text-zinc-500" />
-              <div>
-                <p className="text-sm font-medium">Two-Factor Authentication</p>
-                <p className="text-sm text-slate-500 dark:text-zinc-400">Secure your account with 2FA</p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={values.twoFA}
-              onChange={(next) => onChange({ twoFA: next })}
-              label="Two-factor authentication"
-            />
-          </div>
 
           {/* Active sessions — derived from Firebase Auth metadata */}
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#16161a]">
