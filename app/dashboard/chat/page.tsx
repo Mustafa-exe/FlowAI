@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eraser, Sparkles } from "lucide-react";
@@ -15,7 +16,7 @@ import type { Task } from "@/types/task";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { createCalendarEvent, loadGCalToken, isTokenValid } from "@/lib/googleCalendar";
 
-export default function ChatPage() {
+function ChatPageInner() {
   const { theme } = useThemeMode();
   const isDark = theme === "dark";
   const { user, isAuthReady } = useAuth();
@@ -316,3 +317,11 @@ export default function ChatPage() {
   );
 }
 
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f8fafc] dark:bg-[#111114]" />}>
+      <ChatPageInner />
+    </Suspense>
+  );
+}
