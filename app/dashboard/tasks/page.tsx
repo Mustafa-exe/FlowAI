@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -25,7 +26,7 @@ import {
 import { createCalendarEvent } from "@/lib/googleCalendar";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 
-export default function TasksPage() {
+function TasksInner() {
   const { theme } = useThemeMode();
   const isDark = theme === "dark";
   const { user, isAuthReady, getGCalToken } = useAuth();
@@ -267,5 +268,13 @@ export default function TasksPage() {
         onSave={(task) => { editingTask?.id ? handleEditTask(task) : handleAddTask(task); }}
         onDelete={handleDeleteTask} />
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f8fafc] dark:bg-[#111114]" />}>
+      <TasksInner />
+    </Suspense>
   );
 }
