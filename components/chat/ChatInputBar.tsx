@@ -25,9 +25,10 @@ export default function ChatInputBar({
 
   // Detect speech support after mount only (avoids SSR hydration mismatch)
   useEffect(() => {
+    const w = window as any;
     setSpeechSupported(
       typeof window !== "undefined" &&
-      !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+      !!(w.SpeechRecognition || w.webkitSpeechRecognition)
     );
   }, []);
 
@@ -41,8 +42,8 @@ export default function ChatInputBar({
   const startListening = () => {
     if (!speechSupported) return;
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const w = window as any;
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
 
