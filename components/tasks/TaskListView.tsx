@@ -28,21 +28,26 @@ export default function TaskListView({
     Backlog: true,
   });
 
-  const filtered = activeFilter === "all" ? tasks : tasks.filter((task) => task.status.toLowerCase() === activeFilter.toLowerCase());
+  const filtered =
+    activeFilter === "all"
+      ? tasks
+      : tasks.filter((t) => t.status.toLowerCase() === activeFilter.toLowerCase());
+
   const groups = useMemo(
     () => ({
-      Pending: filtered.filter((task) => task.status === "Pending"),
-      "In Progress": filtered.filter((task) => task.status === "In Progress"),
-      Completed: filtered.filter((task) => task.status === "Completed"),
-      Backlog: filtered.filter((task) => task.status === "Backlog"),
+      Pending: filtered.filter((t) => t.status === "Pending"),
+      "In Progress": filtered.filter((t) => t.status === "In Progress"),
+      Completed: filtered.filter((t) => t.status === "Completed"),
+      Backlog: filtered.filter((t) => t.status === "Backlog"),
     }),
     [filtered],
   );
 
   return (
     <section className="mt-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-[#16161a]">
-        <div className="grid grid-cols-[24px_1fr_120px_120px_130px_56px_70px] gap-4 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-500">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#16161a]">
+        {/* Column headers */}
+        <div className="grid grid-cols-[28px_1fr_130px_140px_140px_80px_80px] items-center gap-4 border-b border-slate-100 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:border-white/8 dark:text-zinc-500">
           <span />
           <span>Task Name</span>
           <span>Priority</span>
@@ -51,27 +56,39 @@ export default function TaskListView({
           <span>Assignee</span>
           <span className="text-right">Actions</span>
         </div>
-        {Object.entries(groups).map(([status, items]) => {
-          if (items.length === 0) {
-            return null;
-          }
 
+        {/* Groups */}
+        {Object.entries(groups).map(([status, items]) => {
+          if (items.length === 0) return null;
           const isClosed = collapsed[status];
 
           return (
-            <div key={status} className="border-t border-slate-100 dark:border-white/5">
+            <div key={status} className="border-t border-slate-100 first:border-t-0 dark:border-white/5">
+              {/* Group header */}
               <button
                 type="button"
-                onClick={() => setCollapsed((current) => ({ ...current, [status]: !current[status] }))}
-                className="flex w-full items-center gap-2 px-4 py-3 text-left"
+                onClick={() => setCollapsed((c) => ({ ...c, [status]: !c[status] }))}
+                className="flex w-full items-center gap-2.5 px-5 py-3.5 text-left transition hover:bg-slate-50 dark:hover:bg-white/3"
                 aria-expanded={!isClosed}
               >
-                <ChevronDown size={14} className={`transition-transform ${isClosed ? "-rotate-90" : ""}`} />
+                <ChevronDown
+                  size={14}
+                  className={`shrink-0 text-slate-400 transition-transform dark:text-zinc-500 ${isClosed ? "-rotate-90" : ""}`}
+                />
                 <span className="text-sm font-semibold">{status}</span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-white/10 dark:text-zinc-400">{items.length}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/10 dark:text-zinc-400">
+                  {items.length}
+                </span>
               </button>
-              {!isClosed ? (
-                <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.05 } } }} className="space-y-1 pb-2">
+
+              {/* Rows */}
+              {!isClosed && (
+                <motion.div
+                  initial="hidden"
+                  animate="visible"
+                  variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+                  className="divide-y divide-slate-50 dark:divide-white/4"
+                >
                   {items.map((task) => (
                     <TaskRow
                       key={task.id}
@@ -82,18 +99,33 @@ export default function TaskListView({
                     />
                   ))}
                 </motion.div>
-              ) : null}
+              )}
             </div>
           );
         })}
+
+        {/* Empty state */}
+        {filtered.length === 0 && (
+          <div className="px-5 py-10 text-center text-sm text-slate-400 dark:text-zinc-500">
+            No tasks match this filter.
+          </div>
+        )}
       </div>
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-500">
-        <p>Showing {filtered.length} of {tasks.length} tasks</p>
-        <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 dark:border-white/10">
-          <button type="button" onClick={() => onFilterChange("all")} className="px-2 py-0.5">
-            Reset
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-400 dark:text-zinc-500">
+        <p>
+          Showing {filtered.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}
+        </p>
+        {activeFilter !== "all" && (
+          <button
+            type="button"
+            onClick={() => onFilterChange("all")}
+            className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/5"
+          >
+            Reset filter
           </button>
-        </div>
+        )}
       </div>
     </section>
   );

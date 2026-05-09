@@ -329,7 +329,7 @@ function LightHero() {
 
             <motion.div variants={fadeUpVariants} className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/dashboard"
+                href="/onboarding"
                 className="inline-flex items-center justify-center rounded-full bg-[#2563eb] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
               >
                 Get Started
@@ -458,7 +458,7 @@ function DarkHero() {
 
           <motion.div variants={fadeUpVariants} className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="#pricing"
+              href="/onboarding"
               className="inline-flex items-center justify-center rounded-full bg-[#7c6ff7] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#8f84ff]"
             >
               Get Started
@@ -708,7 +708,7 @@ function CtaSection({ theme, copy }: { theme: ThemeMode; copy: typeof lightCopy 
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-zinc-400 text-balance">{copy.ctaSubtitle}</p>
           <Link
-            href="#hero"
+            href="/onboarding"
             className="mt-10 inline-flex items-center justify-center rounded-full border border-[#7c6ff7] bg-[#7c6ff7] px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-[#8f84ff]"
           >
             Start Automating
@@ -733,7 +733,7 @@ function CtaSection({ theme, copy }: { theme: ThemeMode; copy: typeof lightCopy 
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/85 text-balance">{copy.ctaSubtitle}</p>
         <Link
-          href="#hero"
+          href="/onboarding"
           className="mt-10 inline-flex items-center justify-center rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-[#2563eb] transition hover:bg-slate-100"
         >
           Start Automating

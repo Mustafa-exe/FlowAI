@@ -1,21 +1,25 @@
 "use client";
 
 import { BarChart2, Bell, Clock, Smartphone, Sparkles } from "lucide-react";
-import { useState } from "react";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import SkeletonRow from "@/components/ui/SkeletonRow";
+import type { NotificationPrefs } from "@/lib/userPreferences";
 
-const initial = [
-  { icon: Bell, label: "Email Notifications", description: "Receive task updates via email", enabled: true },
-  { icon: Smartphone, label: "Push Notifications", description: "Browser and mobile alerts for deadlines", enabled: true },
-  { icon: BarChart2, label: "Weekly Digest", description: "Every Monday: your week in review", enabled: false },
-  { icon: Clock, label: "Task Reminders", description: "Alerts before deadlines based on priority", enabled: true },
-] as const;
+// Static metadata — labels/descriptions never change, only the enabled state comes from Firestore
+const ROWS = [
+  { key: "emailNotifications" as const, icon: Bell,        label: "Email Notifications",  description: "Receive task updates via email" },
+  { key: "pushNotifications"  as const, icon: Smartphone,  label: "Push Notifications",   description: "Browser and mobile alerts for deadlines" },
+  { key: "weeklyDigest"       as const, icon: BarChart2,   label: "Weekly Digest",        description: "Every Monday: your week in review" },
+  { key: "taskReminders"      as const, icon: Clock,       label: "Task Reminders",       description: "Alerts before deadlines based on priority" },
+];
 
-export default function NotificationsSection({ isLoading, onDirty }: { isLoading: boolean; onDirty: () => void }) {
-  const [items, setItems] = useState(initial);
-  const [summaryTime, setSummaryTime] = useState("07:00");
+type Props = {
+  isLoading: boolean;
+  values: NotificationPrefs;
+  onChange: (patch: Partial<NotificationPrefs>) => void;
+};
 
+export default function NotificationsSection({ isLoading, values, onChange }: Props) {
   const rowClass =
     "flex h-16 items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 transition hover:bg-slate-50 dark:border-white/10 dark:bg-[#16161a] dark:hover:bg-white/5";
 
@@ -35,29 +39,24 @@ export default function NotificationsSection({ isLoading, onDirty }: { isLoading
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.label} className={rowClass}>
-                <div className="flex items-center gap-3">
-                  <Icon className="size-5 text-slate-400 dark:text-zinc-500" />
-                  <div>
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400">{item.description}</p>
-                  </div>
+          {ROWS.map(({ key, icon: Icon, label, description }) => (
+            <div key={key} className={rowClass}>
+              <div className="flex items-center gap-3">
+                <Icon className="size-5 text-slate-400 dark:text-zinc-500" />
+                <div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-sm text-slate-500 dark:text-zinc-400">{description}</p>
                 </div>
-                <ToggleSwitch
-                  checked={item.enabled}
-                  onChange={(next) => {
-                    setItems((prev) => prev.map((p) => (p.label === item.label ? { ...p, enabled: next } : p)));
-                    onDirty();
-                  }}
-                  label={item.label}
-                />
               </div>
-            );
-          })}
+              <ToggleSwitch
+                checked={values[key]}
+                onChange={(next) => onChange({ [key]: next })}
+                label={label}
+              />
+            </div>
+          ))}
 
+          {/* Daily AI Summary time picker */}
           <div className={rowClass}>
             <div className="flex items-center gap-3">
               <Sparkles className="size-5 text-slate-400 dark:text-zinc-500" />
@@ -68,11 +67,8 @@ export default function NotificationsSection({ isLoading, onDirty }: { isLoading
             </div>
             <input
               type="time"
-              value={summaryTime}
-              onChange={(e) => {
-                setSummaryTime(e.target.value);
-                onDirty();
-              }}
+              value={values.dailySummaryTime}
+              onChange={(e) => onChange({ dailySummaryTime: e.target.value })}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-white/5"
               aria-label="Daily AI summary time"
             />
@@ -82,4 +78,3 @@ export default function NotificationsSection({ isLoading, onDirty }: { isLoading
     </div>
   );
 }
-

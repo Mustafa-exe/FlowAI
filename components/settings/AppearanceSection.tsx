@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import ThemeCard from "@/components/ui/ThemeCard";
 import SkeletonRow from "@/components/ui/SkeletonRow";
+import { FontSizePreset, ThemeVariant, useThemeMode } from "@/components/theme-provider";
 
 const themes = [
   { id: "modern-light", name: "Modern Light", swatches: ["#f5f5f0", "#6366f1", "#0f172a"] },
@@ -15,8 +15,7 @@ const themes = [
 ] as const;
 
 export default function AppearanceSection({ isLoading, onDirty }: { isLoading: boolean; onDirty: () => void }) {
-  const [compact, setCompact] = useState(false);
-  const [fontSize, setFontSize] = useState("M");
+  const { themeVariant, setThemeVariant, compactMode, setCompactMode, fontSizePreset, setFontSizePreset } = useThemeMode();
 
   return (
     <div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-soft dark:border-white/10 dark:bg-[#16161a]">
@@ -37,7 +36,15 @@ export default function AppearanceSection({ isLoading, onDirty }: { isLoading: b
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">Theme</p>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {themes.map((t, idx) => (
-                <ThemeCard key={t.id} id={t.id} name={t.name} swatches={[...t.swatches]} onDirty={onDirty} defaultChecked={idx === 0} />
+                <ThemeCard
+                  key={t.id}
+                  id={t.id}
+                  name={t.name}
+                  swatches={[...t.swatches]}
+                  checked={themeVariant === t.id}
+                  onSelect={(id) => setThemeVariant(id as ThemeVariant)}
+                  onDirty={onDirty}
+                />
               ))}
             </div>
           </div>
@@ -48,9 +55,9 @@ export default function AppearanceSection({ isLoading, onDirty }: { isLoading: b
               <p className="text-sm text-slate-500 dark:text-zinc-400">Reduce spacing and card padding</p>
             </div>
             <ToggleSwitch
-              checked={compact}
+              checked={compactMode}
               onChange={(next) => {
-                setCompact(next);
+                setCompactMode(next);
                 onDirty();
               }}
               label="Compact mode"
@@ -59,9 +66,9 @@ export default function AppearanceSection({ isLoading, onDirty }: { isLoading: b
 
           <SegmentedControl
             label="Font Size"
-            value={fontSize}
+            value={fontSizePreset}
             onChange={(v) => {
-              setFontSize(v);
+              setFontSizePreset(v as FontSizePreset);
               onDirty();
             }}
             options={["S", "M", "L"]}

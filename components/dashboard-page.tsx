@@ -39,6 +39,18 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { ThemeMode, useThemeMode } from "./theme-provider";
 import { ThemeToggle } from "./theme-toggle";
+import { useAuth } from "@/components/auth-provider";
+import {
+  subscribeToTasks,
+  subscribeToEvents,
+  subscribeToAnalytics,
+  loadProfile,
+  clearSeedTasks,
+  type UserProfile,
+  type AnalyticsDoc,
+} from "@/lib/firestoreCollections";
+import type { Task as FirestoreTask } from "@/types/task";
+import type { CalendarEvent } from "@/types/calendar";
 
 type SidebarItem = {
   label: string;
@@ -51,7 +63,8 @@ type TaskStatus = Exclude<FilterValue, "all">;
 
 type Priority = "High" | "Medium" | "Low";
 
-type Task = {
+// Dashboard-internal task shape (converted from Firestore tasks for display)
+type DashTask = {
   id: number;
   title: string;
   desc: string;
@@ -96,127 +109,26 @@ const sidebarItems: SidebarItem[] = [
   { label: "Settings", icon: Settings2 },
 ];
 
-const overviewStats: StatCard[] = [
-  { label: "Pending Tasks", value: 12, icon: Clock3, accent: "amber" },
-  { label: "Completed Today", value: 8, icon: CheckCircle2, accent: "emerald" },
-  { label: "Upcoming Events", value: 5, icon: CalendarDays, accent: "blue" },
-  { label: "AI Actions Taken", value: 24, icon: Zap, accent: "violet" },
-];
-
-const tasks: Task[] = [
-  {
-    id: 1,
-    title: "Portfolio Redesign",
-    desc: "Finalize hero section and export assets",
-    priority: "High",
-    deadline: "Tomorrow, 6:00 PM",
-    status: "pending",
-    assignee: "Maya",
-    initials: "M",
-    avatarTone: "blue",
-  },
-  {
-    id: 2,
-    title: "Q3 Report Review",
-    desc: "Review analytics and prepare summary slide",
-    priority: "Medium",
-    deadline: "Today, 3:00 PM",
-    status: "pending",
-    assignee: "Jordan",
-    initials: "J",
-    avatarTone: "amber",
-  },
-  {
-    id: 3,
-    title: "Team Standup",
-    desc: "Daily sync with product and design team",
-    priority: "Low",
-    deadline: "Today, 10:00 AM",
-    status: "completed",
-    assignee: "Aisha",
-    initials: "A",
-    avatarTone: "emerald",
-  },
-  {
-    id: 4,
-    title: "Client Proposal",
-    desc: "Send revised pricing proposal to Acme Corp",
-    priority: "High",
-    deadline: "Wed, 5:00 PM",
-    status: "upcoming",
-    assignee: "Noah",
-    initials: "N",
-    avatarTone: "rose",
-  },
-  {
-    id: 5,
-    title: "API Integration",
-    desc: "Connect Zapier webhook to task pipeline",
-    priority: "Medium",
-    deadline: "Thu, 12:00 PM",
-    status: "upcoming",
-    assignee: "Priya",
-    initials: "P",
-    avatarTone: "cyan",
-  },
-  {
-    id: 6,
-    title: "Design System Update",
-    desc: "Update color tokens and component variants",
-    priority: "Low",
-    deadline: "Fri, EOD",
-    status: "completed",
-    assignee: "Leo",
-    initials: "L",
-    avatarTone: "violet",
-  },
-];
-
-const upcomingEvents: EventItem[] = [
-  { title: "Marketing Sync", time: "Today, 10:00 AM", type: "meeting", icon: Video },
-  { title: "Focus Block", time: "Today, 11:00 AM - 1:00 PM", type: "focus", icon: Target },
-  { title: "Client Call", time: "Tomorrow, 2:00 PM", type: "deadline", icon: CalendarClock },
-  { title: "Sprint Planning", time: "Wed, 9:00 AM", type: "planning", icon: Rocket },
-];
-
-const notifications: NotificationItem[] = [
-  { id: 1, title: "Task completed", message: "Aisha marked Team Standup as completed.", when: "2m ago", unread: true },
-  { id: 2, title: "Deadline reminder", message: "Q3 Report Review is due today at 3:00 PM.", when: "15m ago", unread: true },
-  { id: 3, title: "New integration", message: "Zapier webhook sync is now active.", when: "1h ago" },
-];
-
-const pageContent: Record<string, { title: string; description: string; items: string[] }> = {
-  Dashboard: {
-    title: "Dashboard",
-    description: "Your productivity overview with insights and live activity.",
-    items: ["Daily summary generated", "3 bottlenecks detected", "Recommended actions available"],
-  },
-  Tasks: {
-    title: "Tasks",
-    description: "Manage pending, upcoming, and completed tasks.",
-    items: ["Portfolio Redesign", "Q3 Report Review", "Client Proposal", "API Integration"],
-  },
-  Calendar: {
-    title: "Calendar",
-    description: "Track your schedule and upcoming time blocks.",
-    items: ["Marketing Sync - 10:00 AM", "Focus Block - 11:00 AM", "Client Call - Tomorrow 2:00 PM"],
-  },
-  Analytics: {
-    title: "Analytics",
-    description: "Monitor productivity trends and completion rates.",
-    items: ["14% productivity increase", "67% daily completion", "Most active project: Portfolio Redesign"],
-  },
-  Integrations: {
-    title: "Integrations",
-    description: "Connected tools and workflow automations.",
-    items: ["Zapier", "Google Calendar", "Slack", "Notion"],
-  },
-  Settings: {
-    title: "Settings",
-    description: "Customize preferences, profile, and notifications.",
-    items: ["Theme preference", "Notification channels", "Workspace permissions"],
-  },
-};
+// ── Utility: format ISO datetime or human-readable dueDate ────────────────────
+function formatDueDate(raw: string): string {
+  if (!raw) return "—";
+  // ISO datetime: "2026-05-22T23:03"
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en", { month: "short", day: "numeric" }) +
+        ", " + d.toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" });
+    }
+  }
+  // ISO date only: "2026-05-22"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(raw + "T00:00");
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+    }
+  }
+  return raw; // already human-readable ("Today, 3:00 PM")
+}
 
 const filterTabs: Array<{ label: string; value: FilterValue }> = [
   { label: "All", value: "all" },
@@ -330,49 +242,139 @@ const avatarStyles: Record<string, string> = {
 export function DashboardPage() {
   const { theme } = useThemeMode();
   const isDark = theme === "dark";
+  const { user, isAuthReady } = useAuth();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [greeting, setGreeting] = useState("Hello");
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const unreadCount = notifications.filter((item) => item.unread).length;
+
+  // ── Live data from Firestore ───────────────────────────────────────────────
+  const [profile, setProfile] = useState<UserProfile>({ displayName: "", role: "", avatarUrl: null });
+  const [tasks, setTasks] = useState<FirestoreTask[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsDoc | null>(null);
 
   useEffect(() => {
     setGreeting(getGreeting());
   }, []);
 
+  // Redirect unauthenticated users to login
+  const router = useRouter();
   useEffect(() => {
-    const closePanelsOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setNotificationsOpen(false);
-        setProfileOpen(false);
-      }
+    if (isAuthReady && !user) {
+      router.replace("/login");
+    }
+  }, [isAuthReady, user, router]);
+
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+
+    // Immediately seed display name from Firebase Auth — no async wait
+    setProfile((prev) => ({
+      ...prev,
+      displayName: user.displayName || user.email?.split("@")[0] || "",
+      avatarUrl: user.photoURL || null,
+    }));
+
+    // Remove any auto-seeded demo tasks silently
+    clearSeedTasks(user.uid).catch(() => {});
+
+    // Then enrich with Firestore profile (role, custom name override)
+    loadProfile(user.uid).then((p) => {
+      setProfile({
+        // Only use Firestore displayName if it's actually set (not the default "User")
+        displayName:
+          (p.displayName && p.displayName !== "User" ? p.displayName : null) ||
+          user.displayName ||
+          user.email?.split("@")[0] ||
+          "User",
+        role: p.role && p.role !== "Team Member" ? p.role : (p.role || "Team Member"),
+        avatarUrl: p.avatarUrl || user.photoURL || null,
+      });
+    });
+
+    // Subscribe to tasks
+    const unsubTasks = subscribeToTasks(user.uid, setTasks);
+    // Subscribe to calendar events
+    const unsubEvents = subscribeToEvents(user.uid, setEvents);
+    // Subscribe to analytics
+    const unsubAnalytics = subscribeToAnalytics(user.uid, setAnalytics);
+
+    return () => {
+      unsubTasks();
+      unsubEvents();
+      unsubAnalytics();
     };
+  }, [isAuthReady, user]);
 
-    window.addEventListener("keydown", closePanelsOnEscape);
-    return () => window.removeEventListener("keydown", closePanelsOnEscape);
-  }, []);
+  // ── Derived overview stats from live data ──────────────────────────────────
+  const today = new Date().toISOString().slice(0, 10);
+  const overviewStats = useMemo(() => {
+    const pending        = tasks.filter((t) => t.status === "Pending" || t.status === "In Progress").length;
+    const completedToday = tasks.filter((t) => t.status === "Completed" && t.dueDate.toLowerCase().includes("today")).length;
+    const upcomingCount  = events.filter((e) => e.date >= today && !e.completed).length;
+    const aiActions      = analytics?.tasksCompleted ?? 0;
+    return [
+      { label: "Pending Tasks",    value: pending,        icon: Clock3,       accent: "amber" },
+      { label: "Completed Today",  value: completedToday, icon: CheckCircle2, accent: "emerald" },
+      { label: "Upcoming Events",  value: upcomingCount,  icon: CalendarDays, accent: "blue" },
+      { label: "AI Actions Taken", value: aiActions,      icon: Zap,          accent: "violet" },
+    ] as StatCard[];
+  }, [tasks, events, analytics, today]);
 
+  // ── Notifications derived from tasks (due today / recently completed) ──────
+  const liveNotifications = useMemo<NotificationItem[]>(() => {
+    const items: NotificationItem[] = [];
+    tasks
+      .filter((t) => t.dueDate.toLowerCase().includes("today") && t.status !== "Completed")
+      .slice(0, 2)
+      .forEach((t, i) => {
+        items.push({ id: i + 1, title: "Deadline reminder", message: `"${t.title}" is due today.`, when: "Now", unread: true });
+      });
+    tasks
+      .filter((t) => t.status === "Completed")
+      .slice(0, 1)
+      .forEach((t) => {
+        items.push({ id: items.length + 1, title: "Task completed", message: `"${t.title}" was marked complete.`, when: "Recently" });
+      });
+    return items;
+  }, [tasks]);
+
+  // ── Upcoming events for the strip ─────────────────────────────────────────
+  const upcomingEvents = useMemo<EventItem[]>(() => {
+    return events
+      .filter((e) => e.date >= today && !e.completed)
+      .slice(0, 4)
+      .map((e) => ({
+        title: e.title,
+        time: `${e.date === today ? "Today" : e.date}, ${e.startTime}`,
+        type: (e.type === "task" ? "deadline" : e.type) as EventType,
+        icon: e.type === "meeting" ? Video : e.type === "focus" ? Target : e.type === "deadline" ? CalendarClock : Rocket,
+      }));
+  }, [events, today]);
+
+  const unreadCount = liveNotifications.filter((n) => n.unread).length;
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const shellClassName = isDark ? "bg-[#111114] text-zinc-100" : "bg-[#f8fafc] text-slate-900";
   const sidebarClassName = isDark ? "bg-[#0d0d0f] text-zinc-100 border-white/5" : "bg-white text-slate-900 border-slate-200";
 
+  const displayName = profile.displayName || user?.displayName || user?.email?.split("@")[0] || "there";
+  const userInitials = displayName.charAt(0).toUpperCase();
+
   return (
     <div className={`min-h-screen ${shellClassName}`} style={{ backgroundColor: isDark ? "var(--flowai-dark-surface-2)" : "var(--flowai-light-bg)" }}>
-      <DesktopSidebar isDark={isDark} activeNav={activeNav} setActiveNav={setActiveNav} sidebarClassName={sidebarClassName} />
-      <MobileSidebar
-        isDark={isDark}
-        activeNav={activeNav}
-        setActiveNav={setActiveNav}
-        sidebarClassName={sidebarClassName}
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={setMobileMenuOpen}
-      />
+      <DesktopSidebar isDark={isDark} activeNav={activeNav} setActiveNav={setActiveNav} sidebarClassName={sidebarClassName}
+        displayName={displayName} role={profile.role} initials={userInitials} />
+      <MobileSidebar isDark={isDark} activeNav={activeNav} setActiveNav={setActiveNav} sidebarClassName={sidebarClassName}
+        mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen}
+        displayName={displayName} role={profile.role} initials={userInitials} />
 
       <div className="md:pl-20 lg:pl-60">
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-2 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6 lg:px-8">
           <TopBar
             greeting={greeting}
             isDark={isDark}
@@ -381,24 +383,20 @@ export function DashboardPage() {
             unreadCount={unreadCount}
             notificationsOpen={notificationsOpen}
             profileOpen={profileOpen}
-            notifications={notifications}
+            notifications={liveNotifications}
+            displayName={displayName}
+            initials={userInitials}
             onMenuClick={() => setMobileMenuOpen(true)}
             onSearchChange={setSearchQuery}
-            onToggleNotifications={() => {
-              setNotificationsOpen((current) => !current);
-              setProfileOpen(false);
-            }}
-            onToggleProfile={() => {
-              setProfileOpen((current) => !current);
-              setNotificationsOpen(false);
-            }}
+            onToggleNotifications={() => { setNotificationsOpen((c) => !c); setProfileOpen(false); }}
+            onToggleProfile={() => { setProfileOpen((c) => !c); setNotificationsOpen(false); }}
           />
           {activeNav === "Dashboard" ? (
             <>
-              <OverviewSection isDark={isDark} />
-              <SummaryCard isDark={isDark} />
-              <TaskBoard isDark={isDark} searchQuery={normalizedQuery} />
-              <EventsStrip isDark={isDark} searchQuery={normalizedQuery} />
+              <OverviewSection isDark={isDark} stats={overviewStats} />
+              <SummaryCard isDark={isDark} analytics={analytics} />
+              <TaskBoard isDark={isDark} searchQuery={normalizedQuery} liveTasks={tasks} />
+              <EventsStrip isDark={isDark} searchQuery={normalizedQuery} liveEvents={upcomingEvents} />
             </>
           ) : (
             <FeaturePagePanel isDark={isDark} activeNav={activeNav} searchQuery={normalizedQuery} />
@@ -414,12 +412,25 @@ function DesktopSidebar({
   activeNav,
   setActiveNav,
   sidebarClassName,
+  displayName,
+  role,
+  initials,
 }: {
   isDark: boolean;
   activeNav: string;
   setActiveNav: (value: string) => void;
   sidebarClassName: string;
+  displayName: string;
+  role: string;
+  initials: string;
 }) {
+  const { signOutUser } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.replace("/login");
+  };
   return (
     <aside
       className={`fixed left-0 top-0 z-30 hidden h-screen w-20 flex-col border-r px-3 py-5 md:flex lg:w-60 lg:px-4 ${sidebarClassName}`}
@@ -442,7 +453,16 @@ function DesktopSidebar({
         {sidebarItems.map((item) => {
           const active = activeNav === item.label;
           const Icon = item.icon;
-          const routeHref = item.label === "Tasks" ? "/dashboard/tasks" : item.label === "Settings" ? "/settings" : null;
+          const routeHref =
+            item.label === "Tasks"
+              ? "/dashboard/tasks"
+              : item.label === "Settings"
+                ? "/settings"
+                : item.label === "Calendar"
+                  ? "/dashboard/calendar"
+                  : item.label === "Analytics"
+                    ? "/dashboard/analytics"
+                    : null;
           const itemClassName = `group flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
             active
               ? isDark
@@ -501,15 +521,16 @@ function DesktopSidebar({
 
       <div className={`rounded-[1.35rem] border p-3 ${isDark ? "border-white/5 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
         <div className="flex items-center gap-3">
-          <Avatar initials="M" isDark={isDark} />
+          <Avatar initials={initials} isDark={isDark} />
           <div className="hidden min-w-0 lg:block">
-            <p className="truncate text-sm font-semibold">Mustafa</p>
-            <p className={isDark ? "text-xs text-zinc-500" : "text-xs text-slate-500"}>Product Lead</p>
+            <p className="truncate text-sm font-semibold">{displayName}</p>
+            <p className={isDark ? "text-xs text-zinc-500" : "text-xs text-slate-500"}>{role}</p>
           </div>
         </div>
 
         <button
           type="button"
+          onClick={handleSignOut}
           className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
             isDark
               ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"
@@ -531,6 +552,9 @@ function MobileSidebar({
   sidebarClassName,
   mobileMenuOpen,
   setMobileMenuOpen,
+  displayName,
+  role,
+  initials,
 }: {
   isDark: boolean;
   activeNav: string;
@@ -538,7 +562,18 @@ function MobileSidebar({
   sidebarClassName: string;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (value: boolean) => void;
+  displayName: string;
+  role: string;
+  initials: string;
 }) {
+  const { signOutUser } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.replace("/login");
+  };
+
   return (
     <AnimatePresence>
       {mobileMenuOpen ? (
@@ -583,7 +618,16 @@ function MobileSidebar({
               {sidebarItems.map((item) => {
                 const active = activeNav === item.label;
                 const Icon = item.icon;
-                const routeHref = item.label === "Tasks" ? "/dashboard/tasks" : item.label === "Settings" ? "/settings" : null;
+                const routeHref =
+                  item.label === "Tasks"
+                    ? "/dashboard/tasks"
+                    : item.label === "Settings"
+                      ? "/settings"
+                      : item.label === "Calendar"
+                        ? "/dashboard/calendar"
+                        : item.label === "Analytics"
+                          ? "/dashboard/analytics"
+                          : null;
                 const itemClassName = `flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
                   active
                     ? isDark
@@ -650,15 +694,16 @@ function MobileSidebar({
 
             <div className={`rounded-[1.35rem] border p-3 ${isDark ? "border-white/5 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
               <div className="flex items-center gap-3">
-                <Avatar initials="M" isDark={isDark} />
+                <Avatar initials={initials} isDark={isDark} />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">Mustafa</p>
-                  <p className={isDark ? "text-xs text-zinc-500" : "text-xs text-slate-500"}>Product Lead</p>
+                  <p className="truncate text-sm font-semibold">{displayName}</p>
+                  <p className={isDark ? "text-xs text-zinc-500" : "text-xs text-slate-500"}>{role}</p>
                 </div>
               </div>
 
               <button
                 type="button"
+                onClick={handleSignOut}
                 className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
                   isDark
                     ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"
@@ -685,6 +730,8 @@ function TopBar({
   notificationsOpen,
   profileOpen,
   notifications,
+  displayName,
+  initials,
   onMenuClick,
   onSearchChange,
   onToggleNotifications,
@@ -698,13 +745,31 @@ function TopBar({
   notificationsOpen: boolean;
   profileOpen: boolean;
   notifications: NotificationItem[];
+  displayName: string;
+  initials: string;
   onMenuClick: () => void;
   onSearchChange: (value: string) => void;
   onToggleNotifications: () => void;
   onToggleProfile: () => void;
 }) {
+  const { signOutUser } = useAuth();
+  const router = useRouter();
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.replace("/login");
+  };
+
+  const markRead = (id: number) => {
+    setReadIds((prev) => new Set([...prev, id]));
+  };
+
+  const markAllRead = () => {
+    setReadIds(new Set(notifications.map((n) => n.id)));
+  };
   return (
-    <section className="pt-0">
+    <section className="pb-6 pt-2">
       <div className="flex items-start gap-4 lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <button
@@ -723,7 +788,7 @@ function TopBar({
               {activeNav} Workspace
             </p>
             <h1 className="mt-2 text-[clamp(2rem,4vw,3.1rem)] font-semibold tracking-[-0.06em] text-balance">
-              {greeting}, Mustafa <span className="inline-block">👋</span>
+              {greeting}, {displayName} <span className="inline-block">👋</span>
             </h1>
             <p className={isDark ? "mt-1 text-sm text-zinc-400" : "mt-1 text-sm text-slate-500"}>Here&apos;s what&apos;s happening in FlowAI today.</p>
           </div>
@@ -790,8 +855,8 @@ function TopBar({
             aria-expanded={profileOpen}
             aria-controls="profile-menu"
           >
-            <Avatar initials="M" isDark={isDark} size="sm" />
-            <span className="hidden sm:inline text-sm font-medium">Mustafa</span>
+            <Avatar initials={initials} isDark={isDark} size="sm" />
+            <span className="hidden sm:inline text-sm font-medium">{displayName}</span>
             <ChevronDown className="size-4 opacity-70" />
           </button>
 
@@ -811,29 +876,50 @@ function TopBar({
                   isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"
                 }`}
               >
-                <p className={`px-2 pb-2 text-xs font-semibold uppercase tracking-[0.24em] ${isDark ? "text-zinc-500" : "text-slate-500"}`}>
-                  Notifications
-                </p>
-                <ul className="space-y-2">
-                  {notifications.map((item) => (
-                    <li key={item.id}>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={`w-full rounded-xl px-3 py-2.5 text-left transition ${
-                          isDark ? "hover:bg-white/5" : "hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <p className={`text-sm font-semibold ${isDark ? "text-zinc-100" : "text-slate-900"}`}>{item.title}</p>
-                          {item.unread ? <span className="mt-1 size-2 rounded-full bg-rose-500" aria-hidden="true" /> : null}
-                        </div>
-                        <p className={`mt-1 text-xs ${isDark ? "text-zinc-400" : "text-slate-600"}`}>{item.message}</p>
-                        <p className={`mt-1 text-[11px] ${isDark ? "text-zinc-500" : "text-slate-500"}`}>{item.when}</p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="flex items-center justify-between px-2 pb-2">
+                  <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${isDark ? "text-zinc-500" : "text-slate-500"}`}>
+                    Notifications
+                  </p>
+                  {notifications.some((n) => n.unread && !readIds.has(n.id)) && (
+                    <button
+                      type="button"
+                      onClick={markAllRead}
+                      className={`text-xs font-medium text-[var(--color-accent)] hover:underline`}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                {notifications.length === 0 ? (
+                  <p className={`px-3 py-4 text-sm ${isDark ? "text-zinc-500" : "text-slate-400"}`}>
+                    No notifications yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {notifications.map((item) => {
+                      const isRead = readIds.has(item.id) || !item.unread;
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => markRead(item.id)}
+                            className={`w-full rounded-xl px-3 py-2.5 text-left transition ${
+                              isDark ? "hover:bg-white/5" : "hover:bg-slate-50"
+                            } ${isRead ? "opacity-60" : ""}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <p className={`text-sm font-semibold ${isDark ? "text-zinc-100" : "text-slate-900"}`}>{item.title}</p>
+                              {!isRead ? <span className="mt-1 size-2 shrink-0 rounded-full bg-rose-500" aria-hidden="true" /> : null}
+                            </div>
+                            <p className={`mt-1 text-xs ${isDark ? "text-zinc-400" : "text-slate-600"}`}>{item.message}</p>
+                            <p className={`mt-1 text-[11px] ${isDark ? "text-zinc-500" : "text-slate-500"}`}>{item.when}</p>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -850,25 +936,23 @@ function TopBar({
                   isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"
                 }`}
               >
-                <button
-                  type="button"
+                <div className={`mb-1 px-3 py-2 ${isDark ? "border-b border-white/8" : "border-b border-slate-100"}`}>
+                  <p className={`text-sm font-semibold truncate ${isDark ? "text-zinc-100" : "text-slate-900"}`}>{displayName}</p>
+                </div>
+                <Link
+                  href="/settings"
                   role="menuitem"
-                  className={`flex w-full items-center rounded-xl px-3 py-2 text-sm ${isDark ? "hover:bg-white/5" : "hover:bg-slate-50"}`}
-                >
-                  View profile
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center rounded-xl px-3 py-2 text-sm ${isDark ? "hover:bg-white/5" : "hover:bg-slate-50"}`}
+                  className={`flex w-full items-center rounded-xl px-3 py-2 text-sm transition ${isDark ? "hover:bg-white/5" : "hover:bg-slate-50"}`}
                 >
                   Account settings
-                </button>
+                </Link>
                 <button
                   type="button"
                   role="menuitem"
-                  className={`flex w-full items-center rounded-xl px-3 py-2 text-sm text-rose-500 ${isDark ? "hover:bg-white/5" : "hover:bg-slate-50"}`}
+                  onClick={handleSignOut}
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-500 transition ${isDark ? "hover:bg-white/5" : "hover:bg-slate-50"}`}
                 >
+                  <LogOut className="size-4" />
                   Sign out
                 </button>
               </motion.div>
@@ -880,10 +964,10 @@ function TopBar({
   );
 }
 
-function OverviewSection({ isDark }: { isDark: boolean }) {
+function OverviewSection({ isDark, stats }: { isDark: boolean; stats: StatCard[] }) {
   return (
-    <motion.section initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} variants={statContainerVariants} className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {overviewStats.map((stat) => {
+    <motion.section initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} variants={statContainerVariants} className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {stats.map((stat) => {
         const Icon = stat.icon;
         const accentClass = getAccentClasses(stat.accent, isDark);
 
@@ -903,7 +987,6 @@ function OverviewSection({ isDark }: { isDark: boolean }) {
               <CountUpNumber end={stat.value} />
             </div>
             <p className={`mt-2 text-sm font-medium ${isDark ? "text-zinc-400" : "text-slate-500"}`}>{stat.label}</p>
-            <p className="absolute bottom-5 right-5 text-xs text-slate-400 dark:text-zinc-500">↑ 3 from yesterday</p>
           </motion.article>
         );
       })}
@@ -911,7 +994,9 @@ function OverviewSection({ isDark }: { isDark: boolean }) {
   );
 }
 
-function SummaryCard({ isDark }: { isDark: boolean }) {
+function SummaryCard({ isDark, analytics }: { isDark: boolean; analytics: AnalyticsDoc | null }) {
+  const productivityChange = analytics ? `+${Math.max(0, analytics.productivityScore - 80)}%` : "—";
+  const completedCount = analytics?.tasksCompleted ?? 0;
   return (
     <motion.section
       variants={summaryVariants}
@@ -940,7 +1025,7 @@ function SummaryCard({ isDark }: { isDark: boolean }) {
           </h2>
 
           <p className={`mt-4 max-w-3xl text-base leading-8 ${isDark ? "text-zinc-400" : "text-slate-600"}`}>
-            Optimization phase complete. Your workspace productivity increased by 14% this week. Based on your activity, we&apos;ve identified 3 bottlenecks in the &apos;Portfolio Redesign&apos; project and recommend reassigning the Q3 Report Review to balance workload.
+            Your workspace productivity is at {analytics?.productivityScore ?? 0}%. You have {completedCount} tasks completed so far. FlowAI is monitoring your workload and will surface recommendations as patterns emerge.
           </p>
 
           <div className="mt-8 flex items-center gap-3">
@@ -969,30 +1054,45 @@ function SummaryCard({ isDark }: { isDark: boolean }) {
         </div>
 
         <div className="flex items-center justify-center">
-          <CompletionRing progress={67} isDark={isDark} />
+          <CompletionRing progress={analytics ? Math.min(100, analytics.productivityScore) : 0} isDark={isDark} />
         </div>
       </div>
     </motion.section>
   );
 }
 
-function TaskBoard({ isDark, searchQuery }: { isDark: boolean; searchQuery: string }) {
+function TaskBoard({ isDark, searchQuery, liveTasks }: { isDark: boolean; searchQuery: string; liveTasks: FirestoreTask[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const filter = normalizeFilter(searchParams.get("filter"));
 
+  const mapStatus = (s: string): TaskStatus => {
+    if (s === "Completed") return "completed";
+    if (s === "In Progress" || s === "Pending") return "pending";
+    return "upcoming";
+  };
+
+  const dashTasks: DashTask[] = useMemo(() => liveTasks.map((t) => ({
+    id: parseInt(t.id, 36) || Math.random() * 1000 | 0,
+    title: t.title,
+    desc: t.description,
+    priority: t.priority as Priority,
+    deadline: t.dueDate,
+    status: mapStatus(t.status),
+    assignee: t.assignee || "You",
+    initials: (t.assignee || "Y").charAt(0).toUpperCase(),
+    avatarTone: ["blue","amber","emerald","rose","cyan","violet"][Math.abs(t.title.charCodeAt(0)) % 6],
+  })), [liveTasks]);
+
   const filteredTasks = useMemo(
     () =>
-      (filter === "all" ? tasks : tasks.filter((task) => task.status === filter)).filter((task) => {
-        if (!searchQuery) {
-          return true;
-        }
-
+      (filter === "all" ? dashTasks : dashTasks.filter((task) => task.status === filter)).filter((task) => {
+        if (!searchQuery) return true;
         const searchable = `${task.title} ${task.desc} ${task.assignee} ${task.status} ${task.priority}`.toLowerCase();
         return searchable.includes(searchQuery);
       }),
-    [filter, searchQuery],
+    [filter, searchQuery, dashTasks],
   );
 
   const updateFilter = (nextFilter: FilterValue) => {
@@ -1068,7 +1168,7 @@ function TaskBoard({ isDark, searchQuery }: { isDark: boolean; searchQuery: stri
   );
 }
 
-function TaskCard({ task, index, isDark }: { task: Task; index: number; isDark: boolean }) {
+function TaskCard({ task, index, isDark }: { task: DashTask; index: number; isDark: boolean }) {
   const StatusIcon = getStatusIcon(task.status);
   const priority = priorityStyles[task.priority];
   const avatar = avatarStyles[task.avatarTone] ?? avatarStyles.blue;
@@ -1112,7 +1212,7 @@ function TaskCard({ task, index, isDark }: { task: Task; index: number; isDark: 
           }`}
         >
           <CalendarClock className="size-3.5" />
-          {task.deadline}
+          {formatDueDate(task.deadline)}
         </span>
 
         <div className="flex items-center gap-2">
@@ -1124,8 +1224,8 @@ function TaskCard({ task, index, isDark }: { task: Task; index: number; isDark: 
   );
 }
 
-function EventsStrip({ isDark, searchQuery }: { isDark: boolean; searchQuery: string }) {
-  const filteredEvents = upcomingEvents.filter((event) => {
+function EventsStrip({ isDark, searchQuery, liveEvents }: { isDark: boolean; searchQuery: string; liveEvents: EventItem[] }) {
+  const filteredEvents = liveEvents.filter((event) => {
     if (!searchQuery) {
       return true;
     }
@@ -1181,36 +1281,33 @@ function EventsStrip({ isDark, searchQuery }: { isDark: boolean; searchQuery: st
 }
 
 function FeaturePagePanel({ isDark, activeNav, searchQuery }: { isDark: boolean; activeNav: string; searchQuery: string }) {
-  const content = pageContent[activeNav] ?? pageContent.Dashboard;
-  const visibleItems = content.items.filter((item) => item.toLowerCase().includes(searchQuery));
+  // All nav items now have dedicated routes — this panel is a fallback
+  const routeMap: Record<string, string> = {
+    Tasks: "/dashboard/tasks",
+    Calendar: "/dashboard/calendar",
+    Analytics: "/dashboard/analytics",
+    Integrations: "/dashboard/integrations",
+    Settings: "/settings",
+  };
+  const href = routeMap[activeNav];
 
   return (
     <section className="mt-8">
       <article className={`rounded-[1.8rem] border p-6 lg:p-8 ${isDark ? "border-white/5 bg-[#16161a]" : "border-slate-200 bg-white"}`}>
         <p className={`text-xs font-semibold uppercase tracking-[0.34em] ${isDark ? "text-zinc-500" : "text-slate-500"}`}>{activeNav}</p>
-        <h2 className={`mt-3 text-[clamp(1.7rem,3vw,2.4rem)] font-semibold tracking-[-0.05em] ${isDark ? "text-zinc-100" : "text-slate-900"}`}>{content.title}</h2>
-        <p className={`mt-3 max-w-3xl text-sm leading-7 ${isDark ? "text-zinc-400" : "text-slate-600"}`}>{content.description}</p>
-
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-          {(searchQuery ? visibleItems : content.items).map((item) => (
-            <li key={item}>
-              <button
-                type="button"
-                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                  isDark
-                    ? "border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"
-                }`}
-              >
-                {item}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        {searchQuery && visibleItems.length === 0 ? (
-          <p className={`mt-6 text-sm ${isDark ? "text-zinc-500" : "text-slate-500"}`}>No results found for this page.</p>
-        ) : null}
+        <h2 className={`mt-3 text-[clamp(1.7rem,3vw,2.4rem)] font-semibold tracking-[-0.05em] ${isDark ? "text-zinc-100" : "text-slate-900"}`}>
+          {activeNav}
+        </h2>
+        {href && (
+          <a
+            href={href}
+            className={`mt-6 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition ${
+              isDark ? "bg-[#7c6ff7] hover:bg-[#8f84ff]" : "bg-[#2563eb] hover:bg-[#1d4ed8]"
+            }`}
+          >
+            Open {activeNav} →
+          </a>
+        )}
       </article>
     </section>
   );

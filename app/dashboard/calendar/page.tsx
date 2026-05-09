@@ -1,19 +1,21 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Plus, LayoutDashboard, ListTodo, CalendarDays, ChartColumn, Puzzle, Settings2, MessageSquareText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import WeekView from "@/components/calendar/WeekView";
 import MonthView from "@/components/calendar/MonthView";
 import AgendaView from "@/components/calendar/AgendaView";
 import EventDetailPanel from "@/components/calendar/EventDetailPanel";
 import { MonthViewSkeleton, WeekViewSkeleton } from "@/components/calendar/CalendarSkeleton";
 import ViewSwitcher from "@/components/calendar/ViewSwitcher";
-import { calendarEvents } from "@/data/calendarEvents";
 import { CalendarEvent, CalendarView } from "@/types/calendar";
 import { useThemeMode } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/components/auth-provider";
+import { subscribeToEvents, subscribeToTasks, addEvent, updateEvent, deleteEvent, clearSeedEvents } from "@/lib/firestoreCollections";
+import type { Task } from "@/types/task";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 
 function getWeekStart(date: Date) {
   const d = new Date(date);
@@ -37,34 +39,108 @@ function getPeriodLabel(view: CalendarView, currentDate: Date) {
   return currentDate.toLocaleDateString("en", { month: "long", year: "numeric" });
 }
 
-const sidebarLinks = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
-  { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Chat", href: "/dashboard/chat", icon: MessageSquareText },
-  { label: "Analytics", href: "/dashboard", icon: ChartColumn },
-  { label: "Integrations", href: "/dashboard", icon: Puzzle },
-  { label: "Settings", href: "/settings", icon: Settings2 },
-];
-
 export default function CalendarPage() {
   const { theme } = useThemeMode();
   const isDark = theme === "dark";
+  const { user, isAuthReady } = useAuth();
 
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    date: new Date().toISOString().slice(0, 10),
+    startTime: "09:00",
+    endTime: "10:00",
+    type: "meeting" as CalendarEvent["type"],
+    description: "",
+  });
 
+  // Subscribe to Firestore events + tasks
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setEvents(calendarEvents);
-      setIsLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [view, currentDate]);
+    if (!isAuthReady) return;
+    if (!user) { setIsLoading(false); return; }
+
+    // Clear any old demo seed events silently
+    clearSeedEvents(user.uid).catch(() => {});
+
+    let eventsReady = false;
+    let tasksReady = false;
+    const checkDone = () => { if (eventsReady && tasksReady) setIsLoading(false); };
+
+    const unsubEvents = subscribeToEvents(user.uid, (data) => {
+      setCalendarEvents(data);
+      eventsReady = true;
+      checkDone();
+    });
+
+    const unsubTasks = subscribeToTasks(user.uid, (data) => {
+      setTasks(data);
+      tasksReady = true;
+      checkDone();
+
+      // Auto-navigate to the week containing the nearest upcoming task
+      const upcoming = data
+        .filter((t) => /^\d{4}-\d{2}-\d{2}/.test(t.dueDate))
+        .map((t) => new Date(t.dueDate))
+        .filter((d) => !isNaN(d.getTime()))
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      if (upcoming.length > 0) {
+        const nearest = upcoming[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        // Only jump if the nearest task is not in the current week
+        const weekStart = getWeekStart(currentDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        if (nearest < weekStart || nearest > weekEnd) {
+          setCurrentDate(nearest);
+        }
+      }
+    });
+
+    return () => { unsubEvents(); unsubTasks(); };
+  }, [isAuthReady, user]);
+
+  // Convert tasks with ISO dueDates into CalendarEvent objects
+  const taskEvents = useMemo<CalendarEvent[]>(() => {
+    return tasks
+      .filter((t) => /^\d{4}-\d{2}-\d{2}/.test(t.dueDate)) // only tasks with real dates
+      .map((t) => {
+        const dt = new Date(t.dueDate);
+        const date = dt.toISOString().slice(0, 10);
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mm = String(dt.getMinutes()).padStart(2, "0");
+        const startTime = `${hh}:${mm}`;
+        // Default 1-hour duration
+        const endDt = new Date(dt.getTime() + 60 * 60 * 1000);
+        const endTime = `${String(endDt.getHours()).padStart(2, "0")}:${String(endDt.getMinutes()).padStart(2, "0")}`;
+        return {
+          id: `task-${t.id}`,
+          title: t.title,
+          description: t.description,
+          date,
+          startTime,
+          endTime,
+          type: "task" as const,
+          priority: t.priority,
+          completed: t.status === "Completed",
+        };
+      });
+  }, [tasks]);
+
+  // Merge task-derived events with user-created calendar events
+  const allEvents = useMemo<CalendarEvent[]>(() => {
+    // Deduplicate: user-created events take precedence over task-derived ones
+    const taskEventIds = new Set(taskEvents.map((e) => e.id));
+    const userEvents = calendarEvents.filter((e) => !taskEventIds.has(e.id));
+    return [...taskEvents, ...userEvents];
+  }, [taskEvents, calendarEvents]);
 
   const navigate = (direction: "prev" | "next") => {
     const d = new Date(currentDate);
@@ -78,47 +154,9 @@ export default function CalendarPage() {
 
   return (
     <div className={isDark ? "min-h-screen bg-[#111114] text-zinc-100" : "min-h-screen bg-[#f8fafc] text-slate-900"}>
-      <aside
-        className={`fixed left-0 top-0 z-30 hidden h-screen w-20 flex-col border-r px-3 py-5 md:flex lg:w-60 lg:px-4 ${
-          isDark ? "border-white/5 bg-[#0d0d0f]" : "border-slate-200 bg-white"
-        }`}
-      >
-        <Link href="/" className="flex items-center gap-3 px-1">
-          <span className={`grid size-10 place-items-center rounded-2xl text-sm font-semibold ${isDark ? "bg-[#7c6ff7] text-white" : "bg-[#2563eb] text-white"}`}>
-            F
-          </span>
-          <span className="hidden text-lg font-semibold tracking-[-0.05em] lg:inline">FlowAI</span>
-        </Link>
-        <nav className="mt-8 flex flex-1 flex-col gap-2">
-          {sidebarLinks.map((item) => {
-            const Icon = item.icon;
-            const active = item.href === "/dashboard/calendar";
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
-                  active
-                    ? isDark
-                      ? "bg-white/8 text-zinc-100"
-                      : "bg-slate-100 text-slate-900"
-                    : isDark
-                      ? "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <span className={`grid size-9 place-items-center rounded-xl ${active ? (isDark ? "bg-[#7c6ff7]/20 text-[#c7bfff]" : "bg-[#2563eb]/10 text-[#2563eb]") : isDark ? "bg-white/5 text-zinc-300" : "bg-slate-100 text-slate-500"}`}>
-                  <Icon className="size-4" />
-                </span>
-                <span className="hidden text-sm font-medium lg:inline">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+      <DashboardSidebar />
 
-      <div className="md:pl-20 lg:pl-60">
+      <div className="md:pl-[72px] lg:pl-60">
         <div className={`sticky top-0 z-20 border-b ${isDark ? "border-white/10 bg-[#111114]/85" : "border-slate-200 bg-white/85"} backdrop-blur`}>
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
@@ -155,7 +193,9 @@ export default function CalendarPage() {
 
             <div className="flex items-center gap-2">
               <ViewSwitcher view={view} onChange={setView} />
-              <button className="add-task-btn inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">
+              <button
+                onClick={() => setAddModalOpen(true)}
+                className="add-task-btn inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">
                 <Plus size={16} />
                 Add Event
               </button>
@@ -186,11 +226,11 @@ export default function CalendarPage() {
                     <MonthViewSkeleton />
                   )
                 ) : view === "week" ? (
-                  <WeekView currentDate={currentDate} events={events} onSelectEvent={setSelectedEvent} />
+                  <WeekView currentDate={currentDate} events={allEvents} onSelectEvent={setSelectedEvent} />
                 ) : view === "month" ? (
-                  <MonthView currentDate={currentDate} events={events} onSelectEvent={setSelectedEvent} />
+                  <MonthView currentDate={currentDate} events={allEvents} onSelectEvent={setSelectedEvent} />
                 ) : (
-                  <AgendaView events={events} onSelectEvent={setSelectedEvent} />
+                  <AgendaView events={allEvents} onSelectEvent={setSelectedEvent} />
                 )}
               </motion.div>
             </AnimatePresence>
@@ -201,13 +241,122 @@ export default function CalendarPage() {
       <EventDetailPanel
         selectedEvent={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        onMarkComplete={(id) => setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, completed: true } : ev)))}
-        onDelete={(id) => {
-          setEvents((prev) => prev.filter((ev) => ev.id !== id));
+        onMarkComplete={async (id) => {
+          if (!user) return;
+          // task-derived events: don't write to calendarEvents collection
+          if (!id.startsWith("task-")) {
+            await updateEvent(user.uid, id, { completed: true });
+          }
+        }}
+        onDelete={async (id) => {
+          if (!user) return;
+          if (!id.startsWith("task-")) {
+            await deleteEvent(user.uid, id);
+          }
           setSelectedEvent(null);
         }}
       />
+
+      {/* Add Event Modal */}
+      <AnimatePresence>
+        {addModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setAddModalOpen(false)}
+          >
+            <motion.form
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`w-full max-w-[440px] rounded-2xl border p-6 shadow-2xl ${isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"}`}
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!user || !newEvent.title.trim()) return;
+                await addEvent(user.uid, {
+                  title: newEvent.title.trim(),
+                  description: newEvent.description,
+                  date: newEvent.date,
+                  startTime: newEvent.startTime,
+                  endTime: newEvent.endTime,
+                  type: newEvent.type,
+                  priority: "Medium",
+                  completed: false,
+                });
+                setAddModalOpen(false);
+                setNewEvent({ title: "", date: new Date().toISOString().slice(0, 10), startTime: "09:00", endTime: "10:00", type: "meeting", description: "" });
+              }}
+            >
+              <h3 className="text-lg font-semibold">Add Event</h3>
+              <div className="mt-4 space-y-3">
+                <input
+                  autoFocus required
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="Event title"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                />
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Description (optional)"
+                  rows={2}
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`mb-1 block text-xs font-medium ${isDark ? "text-zinc-400" : "text-slate-500"}`}>Date</label>
+                    <input type="date" required value={newEvent.date}
+                      onChange={(e) => setNewEvent((p) => ({ ...p, date: e.target.value }))}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`mb-1 block text-xs font-medium ${isDark ? "text-zinc-400" : "text-slate-500"}`}>Type</label>
+                    <select value={newEvent.type}
+                      onChange={(e) => setNewEvent((p) => ({ ...p, type: e.target.value as CalendarEvent["type"] }))}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                    >
+                      <option value="meeting">Meeting</option>
+                      <option value="task">Task</option>
+                      <option value="focus">Focus Block</option>
+                      <option value="deadline">Deadline</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`mb-1 block text-xs font-medium ${isDark ? "text-zinc-400" : "text-slate-500"}`}>Start</label>
+                    <input type="time" required value={newEvent.startTime}
+                      onChange={(e) => setNewEvent((p) => ({ ...p, startTime: e.target.value }))}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`mb-1 block text-xs font-medium ${isDark ? "text-zinc-400" : "text-slate-500"}`}>End</label>
+                    <input type="time" required value={newEvent.endTime}
+                      onChange={(e) => setNewEvent((p) => ({ ...p, endTime: e.target.value }))}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-2">
+                <button type="button" onClick={() => setAddModalOpen(false)}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${isDark ? "border-white/10 bg-white/5 text-zinc-100" : "border-slate-200 bg-white text-slate-700"}`}>
+                  Cancel
+                </button>
+                <button type="submit"
+                  className="rounded-full bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">
+                  Add Event
+                </button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-

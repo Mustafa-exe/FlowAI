@@ -8,13 +8,15 @@ export default function ThemeCard({
   name,
   swatches,
   onDirty,
-  defaultChecked,
+  checked,
+  onSelect,
 }: {
   id: string;
   name: string;
   swatches: string[];
   onDirty: () => void;
-  defaultChecked?: boolean;
+  checked: boolean;
+  onSelect: (id: string) => void;
 }) {
   return (
     <motion.label
@@ -27,8 +29,11 @@ export default function ThemeCard({
         name="theme"
         value={id}
         className="sr-only"
-        defaultChecked={defaultChecked}
-        onChange={onDirty}
+        checked={checked}
+        onChange={() => {
+          onSelect(id);
+          onDirty();
+        }}
       />
       <div className="flex h-10 items-center justify-center gap-1">
         {swatches.map((color) => (

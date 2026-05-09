@@ -114,6 +114,23 @@ html[data-theme='dark'] ::selection {
   opacity: 1;
 }
 
+/* Onboarding role + goal selection via CSS :has() */
+.role-card:has(input[type="radio"]:checked) {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.role-card:has(input[type="radio"]:checked) .checkmark-badge {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.goal-chip:has(input[type="checkbox"]:checked) {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 @keyframes task-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);

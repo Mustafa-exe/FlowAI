@@ -6,6 +6,24 @@ import { Task } from "@/types/task";
 import PriorityBadge from "./PriorityBadge";
 import StatusToggle from "./StatusToggle";
 
+function formatDueDate(raw: string): string {
+  if (!raw) return "—";
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en", { month: "short", day: "numeric" }) +
+        ", " + d.toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" });
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(raw + "T00:00");
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+    }
+  }
+  return raw;
+}
+
 const rowVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
@@ -27,7 +45,7 @@ export default function TaskRow({
       <div
         className={`${
           task.status === "Completed" ? "opacity-50" : ""
-        } group grid grid-cols-[24px_1fr_120px_120px_130px_56px_70px] items-center gap-4 rounded-xl px-4 py-3 transition-colors duration-100 hover:bg-[var(--color-surface-hover)]`}
+        } group grid grid-cols-[28px_1fr_130px_140px_140px_80px_80px] items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50 dark:hover:bg-white/3`}
       >
         <input
           type="checkbox"
@@ -51,10 +69,10 @@ export default function TaskRow({
           <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-500">{task.description}</p>
         </div>
         <PriorityBadge priority={task.priority} />
-        <span className="text-xs text-slate-600 dark:text-zinc-400">{task.dueDate}</span>
+        <span className="text-xs text-slate-600 dark:text-zinc-400">{formatDueDate(task.dueDate)}</span>
         <StatusToggle id={task.id} status={task.status} onChange={onStatusChange} />
-        <span className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-white/10 dark:text-zinc-100">
-          {task.assignee}
+        <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-xs font-semibold text-[var(--color-accent)] dark:bg-[var(--color-accent)]/20" title={task.assignee}>
+          {task.assignee ? task.assignee.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "—"}
         </span>
         <div className="flex items-center justify-end gap-0.5">
           <button type="button" onClick={onEdit} className="rounded-full p-1 text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-white/10" aria-label={`Edit ${task.title}`}>

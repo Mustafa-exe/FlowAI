@@ -124,7 +124,17 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link
-              href="/dashboard"
+              href="/login"
+              className={`inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+                isDark
+                  ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/signup"
               className={`inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold transition ${buttonClassName}`}
             >
               Get Started
@@ -161,9 +171,18 @@ export function Navbar() {
               ))}
 
               <Link
-                href="/dashboard"
+                href="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`mt-2 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${buttonClassName}`}
+                className={`mt-2 inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-semibold transition ${
+                  isDark ? "border-white/10 bg-white/5 text-zinc-100" : "border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${buttonClassName}`}
               >
                 Get Started
               </Link>

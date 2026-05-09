@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Sans, Sora } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth-provider";
+import { PreferencesSyncProvider } from "@/components/preferences-sync-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const bodyFont = IBM_Plex_Sans({
@@ -39,7 +41,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayLightFont.variable} ${displayDarkFont.variable} font-body antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <PreferencesSyncProvider>{children}</PreferencesSyncProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
