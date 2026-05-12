@@ -27,6 +27,9 @@ function ChatPageInner() {
   const [input, setInput] = useState(() => searchParams.get("prompt") ?? "");
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState("");
+  const [resendAt, setResendAt] = useState<number | null>(null);
+  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState(0);
+  const sendLockRef = useRef(false);
   const [multiStep, setMultiStep] = useState<MultiStepState>({
     active: false,
     currentStep: 1,
@@ -65,6 +68,25 @@ function ChatPageInner() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isThinking]);
 
+  useEffect(() => {
+    if (!resendAt) {
+      setCooldownSecondsLeft(0);
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
+      setCooldownSecondsLeft(remaining);
+      if (remaining === 0) {
+        setResendAt(null);
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAt]);
+
   const timeNow = () => new Date().toISOString();
 
   const handleClearChat = async () => {
@@ -82,8 +104,14 @@ function ChatPageInner() {
 
   const handleSend = async () => {
     if (!input.trim() || !user) return;
+    if (sendLockRef.current || isThinking) return;
+    if (cooldownSecondsLeft > 0) {
+      setError(`Please wait ${cooldownSecondsLeft}s before sending again.`);
+      return;
+    }
 
     const text = input.trim();
+    sendLockRef.current = true;
     setInput("");
     setError("");
     setIsThinking(true);
@@ -132,6 +160,14 @@ function ChatPageInner() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfterHeader = res.headers.get("Retry-After");
+          const retryAfterSeconds = Number(data.retryAfterSeconds ?? retryAfterHeader ?? 30);
+          setResendAt(Date.now() + Math.max(1, retryAfterSeconds) * 1000);
+        } else if (res.status === 503) {
+          setError(data.error ?? "AI service is temporarily unavailable. Please try again soon.");
+          setResendAt(null);
+        }
         throw new Error(data.error ?? "AI request failed");
       }
 
@@ -227,10 +263,22 @@ function ChatPageInner() {
 
     } catch (err: any) {
       const msg = err?.message ?? "Something went wrong. Please try again.";
-      setError(msg);
+      // Map known server errors to actionable messages
+      if (msg.includes("AI service not configured") || msg.includes("GEMINI_API_KEY")) {
+        setError("AI service not configured. Set the GEMINI_API_KEY environment variable and restart the server.");
+      } else if (msg.includes("Invalid Gemini API key") || msg.includes("API_KEY_INVALID")) {
+        setError("Invalid Gemini API key. Verify your GEMINI_API_KEY value.");
+      } else if (msg.includes("temporarily unavailable") || msg.includes("503")) {
+        setError("AI service is temporarily unavailable. Try again in a moment.");
+      } else if (msg.includes("rate limit") || msg.includes("quota") || msg.includes("429")) {
+        setError("AI rate limit reached. Please wait for the countdown before sending again.");
+      } else {
+        setError(msg);
+      }
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUserMsg.id));
     } finally {
+      sendLockRef.current = false;
       setIsThinking(false);
     }
   };
@@ -247,6 +295,10 @@ function ChatPageInner() {
     () => (isDark ? "min-h-screen bg-[#111114] text-zinc-100" : "min-h-screen bg-[#f8fafc] text-slate-900"),
     [isDark],
   );
+
+  const cooldownLabel = cooldownSecondsLeft > 0
+    ? `You can resend in ${cooldownSecondsLeft}s.`
+    : undefined;
 
   return (
     <div className={pageShell}>
@@ -310,7 +362,7 @@ function ChatPageInner() {
             onMultiStepComplete={handleMultiStepComplete}
             bottomRef={bottomRef}
           />
-          <ChatInputBar input={input} setInput={setInput} onSend={handleSend} />
+          <ChatInputBar input={input} setInput={setInput} onSend={handleSend} disabled={cooldownSecondsLeft > 0} busy={isThinking} cooldownLabel={cooldownLabel} />
         </div>
       </div>
     </div>
@@ -325,3 +377,4 @@ export default function ChatPage() {
     </Suspense>
   );
 }
+

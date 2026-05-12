@@ -256,6 +256,9 @@ const itemRevealVariants: Variants = {
   },
 };
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 export function LandingPage() {
   const { theme } = useThemeMode();
   const isDark = theme === "dark";
@@ -275,10 +278,20 @@ export function LandingPage() {
 }
 
 function LightHero() {
+  const router = useRouter();
+  const [command, setCommand] = useState("");
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = command.trim();
+    if (!text) return;
+    router.push(`/dashboard/chat?prompt=${encodeURIComponent(text)}`);
+  };
+
   return (
     <section
       id="hero"
-      className="relative overflow-hidden px-6 pb-24 pt-28 sm:px-8 lg:px-10"
+      className="relative overflow-hidden px-4 pb-16 pt-20 sm:px-6 sm:pb-24 sm:pt-28 lg:px-10"
       style={{
         background:
           "radial-gradient(circle at top, rgba(37, 99, 235, 0.08) 0%, rgba(255, 255, 255, 0.97) 45%, rgba(248, 250, 252, 1) 100%)",
@@ -286,43 +299,45 @@ function LightHero() {
     >
       <div className="absolute inset-x-0 top-0 h-px bg-slate-200/70" />
       <div className="mx-auto max-w-7xl">
-        <div className="grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <motion.div variants={heroContainerVariants} initial="hidden" animate="show" className="max-w-3xl lg:pt-4">
             <motion.p
               variants={fadeUpVariants}
-              className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2563eb] shadow-[0_12px_34px_-24px_rgba(37,99,235,0.25)]"
+              className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 sm:px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2563eb] shadow-[0_12px_34px_-24px_rgba(37,99,235,0.25)]"
             >
-              <Sparkles className="size-4" />
+              <Sparkles className="size-3 sm:size-4" />
               AI-Powered Productivity
             </motion.p>
 
             <motion.h1
               variants={fadeUpVariants}
-              className="mt-8 max-w-4xl font-display-light text-[clamp(3.4rem,8vw,7rem)] font-semibold leading-[0.88] tracking-[-0.06em] text-slate-900 text-balance"
+              className="mt-6 sm:mt-8 max-w-4xl font-display-light text-[clamp(2.2rem,5vw,7rem)] font-semibold leading-[0.88] tracking-[-0.06em] text-slate-900 text-balance"
             >
               Automate Your Workflow with <span className="text-[#2563eb]">AI</span>
             </motion.h1>
 
-            <motion.p variants={fadeUpVariants} className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 text-balance">
+            <motion.p variants={fadeUpVariants} className="mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg leading-7 sm:leading-8 text-slate-600 text-balance">
               Transform natural language into structured tasks, smart scheduling, and streamlined productivity. The future of work is conversational.
             </motion.p>
 
-            <motion.form variants={fadeUpVariants} onSubmit={(event) => event.preventDefault()} className="mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row">
+            <motion.form variants={fadeUpVariants} onSubmit={onSubmit} className="mt-10 flex max-w-2xl flex-col gap-2 sm:flex-row sm:gap-3">
               <label className="sr-only" htmlFor="light-command">
                 Describe a workflow
               </label>
               <input
                 id="light-command"
                 type="text"
-                defaultValue=""
-                placeholder="Schedule a 30min marketing sync for Monday morning"
-                className="h-14 flex-1 rounded-full border border-slate-200 bg-white/95 px-6 text-base text-slate-900 shadow-[0_16px_40px_-28px_rgba(15,23,42,0.2)] outline-none transition placeholder:text-slate-400 focus:border-[#2563eb]"
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="Schedule a meeting or create a task..."
+                className="h-12 sm:h-14 flex-1 rounded-full border border-slate-200 bg-white/95 px-4 sm:px-6 text-sm sm:text-base text-slate-900 shadow-[0_16px_40px_-28px_rgba(15,23,42,0.2)] outline-none transition placeholder:text-slate-400 focus:border-[#2563eb]"
               />
               <button
                 type="submit"
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#2563eb] px-7 font-semibold text-white transition hover:bg-[#1d4ed8]"
+                className="inline-flex h-12 sm:h-14 items-center justify-center gap-2 rounded-full bg-[#2563eb] px-4 sm:px-7 text-sm sm:text-base font-semibold text-white transition hover:bg-[#1d4ed8] whitespace-nowrap"
               >
-                Generate
+                <span className="hidden sm:inline">Generate</span>
+                <span className="inline sm:hidden">Go</span>
                 <ArrowRight className="size-4" />
               </button>
             </motion.form>
@@ -343,8 +358,8 @@ function LightHero() {
             </motion.div>
           </motion.div>
 
-          <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="relative lg:ml-auto lg:max-w-xl">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_-45px_rgba(15,23,42,0.25)]">
+          <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="relative hidden w-full max-w-md lg:block lg:ml-auto lg:max-w-xl">
+            <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_30px_100px_-45px_rgba(15,23,42,0.25)]">
               <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
                 <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.34em] text-[#2563eb]">
                   <span className="h-2 w-2 rounded-full bg-[#2563eb]" />
@@ -413,9 +428,19 @@ function LightHero() {
 }
 
 function DarkHero() {
+  const router = useRouter();
+  const [command, setCommand] = useState("");
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = command.trim();
+    if (!text) return;
+    router.push(`/dashboard/chat?prompt=${encodeURIComponent(text)}`);
+  };
+
   return (
-    <section id="hero" className="relative overflow-hidden bg-[#0d0d0f] px-6 pb-20 pt-28 sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+    <section id="hero" className="relative overflow-hidden bg-[#0d0d0f] px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-28 lg:px-10">
+      <div className="mx-auto grid max-w-7xl items-center gap-8 sm:gap-12 lg:grid-cols-[1.15fr_0.85fr]">
         <motion.div variants={heroContainerVariants} initial="hidden" animate="show" className="max-w-3xl">
           <motion.p
             variants={fadeUpVariants}
@@ -437,21 +462,24 @@ function DarkHero() {
             FlowAI turns conversations into structured workflows, live deadlines, and immediate execution without the manual drag.
           </motion.p>
 
-          <motion.form variants={fadeUpVariants} onSubmit={(event) => event.preventDefault()} className="mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row">
+          <motion.form variants={fadeUpVariants} onSubmit={onSubmit} className="mt-10 flex max-w-2xl flex-col gap-2 sm:flex-row sm:gap-3">
             <label className="sr-only" htmlFor="dark-command">
               Describe a workflow
             </label>
             <input
               id="dark-command"
               type="text"
-              placeholder="Schedule a 30min marketing sync for Monday morning"
-              className="h-14 flex-1 rounded-full border border-white/10 bg-white/5 px-6 text-base text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-[#7c6ff7] focus:bg-white/8"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder="Schedule a meeting or create a task..."
+              className="h-12 sm:h-14 flex-1 rounded-full border border-white/10 bg-white/5 px-4 sm:px-6 text-sm sm:text-base text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-[#7c6ff7] focus:bg-white/8"
             />
             <button
               type="submit"
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#7c6ff7] px-7 font-semibold text-white transition hover:bg-[#8f84ff]"
+              className="inline-flex h-12 sm:h-14 items-center justify-center gap-2 rounded-full bg-[#7c6ff7] px-4 sm:px-7 text-sm sm:text-base font-semibold text-white transition hover:bg-[#8f84ff] whitespace-nowrap"
             >
-              Generate
+              <span className="hidden sm:inline">Generate</span>
+              <span className="inline sm:hidden">Go</span>
               <ArrowRight className="size-4" />
             </button>
           </motion.form>
@@ -472,8 +500,8 @@ function DarkHero() {
           </motion.div>
         </motion.div>
 
-        <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="relative lg:ml-auto lg:max-w-xl">
-          <div className="rounded-[2rem] border border-white/10 bg-[#16161a] p-5 shadow-[0_30px_100px_-45px_rgba(0,0,0,0.95)]">
+        <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="relative hidden w-full max-w-md lg:block lg:ml-auto lg:max-w-xl">
+          <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-white/10 bg-[#16161a] p-4 sm:p-5 shadow-[0_30px_100px_-45px_rgba(0,0,0,0.95)]">
             <div className="flex items-center justify-between border-b border-white/8 pb-4">
               <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.34em] text-zinc-400">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />

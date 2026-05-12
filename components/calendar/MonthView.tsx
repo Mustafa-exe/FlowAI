@@ -42,8 +42,9 @@ export default function MonthView({
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="grid grid-cols-7 border-b border-slate-200 bg-white/85 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85 dark:text-zinc-500">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="px-3 py-3">
-            {d}
+          <div key={d} className="px-1 sm:px-3 py-2 sm:py-3">
+            <span className="hidden sm:inline">{d}</span>
+            <span className="inline sm:hidden text-[10px]">{d.slice(0, 1)}</span>
           </div>
         ))}
       </div>
@@ -52,7 +53,7 @@ export default function MonthView({
         {days.map((day, index) => {
           if (!day) {
             return (
-              <div key={index} className="min-h-[110px] border-b border-r border-slate-200/70 dark:border-white/10" />
+              <div key={index} className="min-h-[80px] sm:min-h-[110px] border-b border-r border-slate-200/70 dark:border-white/10" />
             );
           }
 
@@ -67,24 +68,30 @@ export default function MonthView({
           return (
             <div
               key={iso}
-              className={`min-h-[110px] border-b border-r border-slate-200/70 p-2 dark:border-white/10 ${
+              className={`min-h-[80px] sm:min-h-[110px] border-b border-r border-slate-200/70 p-1 sm:p-2 dark:border-white/10 overflow-y-auto ${
                 isToday ? "bg-[var(--color-accent)]/5" : ""
               }`}
             >
               <span
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
+                className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs sm:text-sm font-medium ${
                   isToday ? "bg-[var(--color-accent)] text-white" : "text-slate-900 dark:text-zinc-100"
                 }`}
               >
                 {day.getDate()}
               </span>
 
-              <div className="mt-1 space-y-0.5">
-                {dayEvents.slice(0, 3).map((event) => (
+              <div className="mt-0.5 sm:mt-1 space-y-0.5">
+                {dayEvents.slice(0, 2).map((event) => (
                   <EventPill key={event.id} event={event} onClick={() => onSelectEvent(event)} />
                 ))}
-                {dayEvents.length > 3 ? (
-                  <span className="pl-1 text-xs text-slate-500 dark:text-zinc-500">+{dayEvents.length - 3} more</span>
+                {dayEvents.length > 2 ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectEvent(dayEvents[0])}
+                    className="pl-1 text-xs text-slate-500 dark:text-zinc-500 hover:underline"
+                  >
+                    +{dayEvents.length - 2} more
+                  </button>
                 ) : null}
               </div>
             </div>

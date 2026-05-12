@@ -1,6 +1,6 @@
 /**
  * Gemini AI client — uses the free Google Generative Language REST API.
- * Model: gemini-2.0-flash (free tier, fast, confirmed available)
+ * Model: gemini-3-flash-preview (preview model requested by the user)
  */
 
 const MODEL = "gemini-3-flash-preview";
@@ -45,9 +45,8 @@ export async function geminiChat(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as any)?.error?.message ?? `Gemini API error ${res.status}`
-    );
+    const message = (err as any)?.error?.message ?? `Gemini API error ${res.status}`;
+    throw new Error(`Gemini API error ${res.status}: ${message}`);
   }
 
   const data = await res.json();

@@ -57,30 +57,35 @@ export default function WeekView({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="sticky top-0 z-10 grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white/85 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85">
-        <div className="h-12" />
-        {weekDays.map((day) => (
-          <div key={day.toISOString()} className="flex h-12 items-center justify-center border-l border-slate-200 dark:border-white/10">
-            <div className="text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">
-                {day.toLocaleDateString("en", { weekday: "short" })}
-              </p>
-              <p className="text-sm font-semibold">{day.getDate()}</p>
+      {/* Header row — sticky, scrolls horizontally with the grid */}
+      <div className="overflow-x-auto">
+        <div className="sticky top-0 z-10 grid border-b border-slate-200 bg-white/85 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85" style={{ gridTemplateColumns: "48px repeat(7, minmax(80px, 1fr))", minWidth: "calc(48px + 7 * 80px)" }}>
+          <div className="h-10 sm:h-12" />
+          {weekDays.map((day) => (
+            <div key={day.toISOString()} className="flex h-10 sm:h-12 items-center justify-center border-l border-slate-200 dark:border-white/10">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">
+                  {day.toLocaleDateString("en", { weekday: "short" })}
+                </p>
+                <p className="text-xs sm:text-sm font-semibold">{day.getDate()}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-auto">
-        <div className="sticky left-0 z-10 w-16 shrink-0 border-r border-slate-200 bg-white dark:border-white/10 dark:bg-[#111114]">
+        <div className="sticky left-0 z-10 w-12 sm:w-16 shrink-0 border-r border-slate-200 bg-white dark:border-white/10 dark:bg-[#111114]">
           {hours.map((hour) => (
-            <div key={hour} className="flex h-[60px] items-start justify-end pr-3 pt-1 text-xs text-slate-500 dark:text-zinc-500">
-              {formatHour(hour)}
+            <div key={hour} className="flex h-[60px] items-start justify-end pr-1 sm:pr-3 pt-1 text-xs text-slate-500 dark:text-zinc-500">
+              <span className="hidden sm:inline">{formatHour(hour)}</span>
+              <span className="inline sm:hidden text-[10px]">{hour}</span>
             </div>
           ))}
         </div>
 
-        <div className="relative grid flex-1 grid-cols-7">
+        {/* Grid with responsive column widths - 80px minimum width per column */}
+        <div className="relative grid flex-1 grid-cols-7" style={{ minWidth: "calc(7 * 80px)" }}>
           {weekDays.map((day) => {
             const dayISO = toISODate(day);
             const dayEvents = events.filter((event) => event.date === dayISO);

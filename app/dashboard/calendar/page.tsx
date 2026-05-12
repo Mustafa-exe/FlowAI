@@ -260,7 +260,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="relative mx-auto flex min-h-[calc(100vh-64px)] max-w-7xl gap-4 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto w-full flex flex-col min-h-[calc(100vh-64px)] max-w-7xl gap-2 px-3 pb-10 pt-3 sm:gap-4 sm:px-6 sm:pt-4 lg:flex-row lg:gap-4 lg:px-8">
           <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft dark:border-white/10 dark:bg-[#111114]">
             <AnimatePresence mode="wait">
               <motion.div

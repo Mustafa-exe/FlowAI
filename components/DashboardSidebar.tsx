@@ -64,11 +64,8 @@ export function DashboardSidebar() {
   const activeIconClass = isDark ? "bg-[var(--color-accent)]/20 text-[var(--color-accent)]" : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]";
   const inactiveIconClass = isDark ? "bg-white/5 text-zinc-300" : "bg-slate-100 text-slate-500";
 
-  const sidebarWidth = collapsed ? "w-[72px]" : "w-60";
-
   const NavContent = ({ onItemClick }: { onItemClick?: () => void }) => (
     <>
-      {/* Logo */}
       <div className={`flex items-center gap-3 px-1 ${collapsed ? "justify-center" : ""}`}>
         <Link href="/" className="flex items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--color-accent)] text-sm font-semibold text-white">
@@ -82,57 +79,57 @@ export function DashboardSidebar() {
         </Link>
       </div>
 
-      {/* Nav items */}
-      <nav className="mt-8 flex flex-1 flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              onClick={onItemClick}
-              aria-current={active ? "page" : undefined}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-3 transition ${collapsed ? "justify-center" : ""} ${active ? activeClass : inactiveClass}`}
-            >
-              <span className={`grid size-9 shrink-0 place-items-center rounded-xl transition ${active ? activeIconClass : inactiveIconClass}`}>
-                <Icon className="size-4" />
-              </span>
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="mt-6 flex min-h-0 flex-1 flex-col">
+        <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={onItemClick}
+                aria-current={active ? "page" : undefined}
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 rounded-2xl px-3 py-3 transition ${collapsed ? "justify-center" : ""} ${active ? activeClass : inactiveClass}`}
+              >
+                <span className={`grid size-9 shrink-0 place-items-center rounded-xl transition ${active ? activeIconClass : inactiveIconClass}`}>
+                  <Icon className="size-4" />
+                </span>
+                {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* User card */}
-      <div className={`rounded-[1.35rem] border p-3 ${isDark ? "border-white/5 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
-        <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-          <span className={`grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-accent)]/10 text-sm font-semibold text-[var(--color-accent)]`}>
-            {initials}
-          </span>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{displayName}</p>
-              <p className={`text-xs ${isDark ? "text-zinc-500" : "text-slate-500"}`}>
-                {user?.email?.split("@")[0] ?? ""}
-              </p>
-            </div>
-          )}
+        <div className={`mt-4 rounded-[1.35rem] border p-3 ${isDark ? "border-white/5 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
+          <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-accent)]/10 text-sm font-semibold text-[var(--color-accent)]">
+              {initials}
+            </span>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{displayName}</p>
+                <p className={`text-xs ${isDark ? "text-zinc-500" : "text-slate-500"}`}>
+                  {user?.email?.split("@")[0] ?? ""}
+                </p>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            title={collapsed ? "Sign out" : undefined}
+            className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
+              isDark
+                ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            <LogOut className="size-4 shrink-0" />
+            {!collapsed && <span>Sign out</span>}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          title={collapsed ? "Sign out" : undefined}
-          className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
-            isDark
-              ? "border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10"
-              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <LogOut className="size-4 shrink-0" />
-          {!collapsed && <span>Sign out</span>}
-        </button>
       </div>
     </>
   );
@@ -143,7 +140,7 @@ export function DashboardSidebar() {
       <motion.aside
         animate={{ width: collapsed ? 72 : 240 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed left-0 top-0 z-30 hidden h-screen flex-col border-r px-3 py-5 md:flex lg:px-4 ${sidebarBg}`}
+        className={`fixed left-0 top-0 z-30 hidden h-screen min-h-0 flex-col overflow-hidden border-r px-3 py-4 md:flex lg:px-4 ${sidebarBg}`}
       >
         <NavContent />
 
@@ -190,7 +187,7 @@ export function DashboardSidebar() {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r px-4 py-5 md:hidden ${sidebarBg}`}
+              className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-hidden border-r px-4 py-4 md:hidden ${sidebarBg}`}
             >
               <button
                 type="button"

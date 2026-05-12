@@ -25,12 +25,14 @@ export default function TaskKanbanView({
   onEdit,
   onDelete,
   onStatusChange,
+  onToggleSubtask,
 }: {
   tasks: Task[];
   onAdd: (status: Task["status"]) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Task["status"]) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string, completed: boolean) => void;
 }) {
   return (
     <section className="mt-6">
@@ -39,7 +41,18 @@ export default function TaskKanbanView({
           const columnTasks = tasks.filter((task) => task.status === col.status);
 
           return (
-            <div key={col.status} className="min-h-[420px] rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#16161a]">
+            <div
+              key={col.status}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                try {
+                  const id = e.dataTransfer?.getData("text/plain");
+                  if (id) onStatusChange(id, col.status);
+                } catch {}
+              }}
+              className="min-h-[420px] rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#16161a]"
+            >
               <div className={`mb-3 flex items-center justify-between border-l-4 ${columnColors[col.status]} pl-2`}>
                 <h3 className="text-sm font-semibold">{col.label}</h3>
                 <button
@@ -66,6 +79,7 @@ export default function TaskKanbanView({
                       onEdit={() => onEdit(task)}
                       onDelete={() => onDelete(task.id)}
                       onStatusChange={onStatusChange}
+                      onToggleSubtask={onToggleSubtask}
                     />
                   ))}
                 </div>

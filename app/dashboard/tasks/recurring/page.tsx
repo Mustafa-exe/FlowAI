@@ -35,14 +35,31 @@ export default function RecurringTasksPage() {
 
   // Fetch rules from API
   const fetchRules = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("[fetchRules] No user, skipping...");
+      return;
+    }
     try {
+      console.log("[fetchRules] Getting ID token...", { uid: user.uid });
+      const idToken = await user.getIdToken();
+      console.log("[fetchRules] Got ID token, fetching rules...");
+      
       const res = await fetch("/api/tasks/recurring", {
-        headers: { "x-user-uid": user.uid },
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
+      
+      console.log("[fetchRules] Got response:", { status: res.status, ok: res.ok });
       const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to load recurring rules.");
+      }
+      console.log("[fetchRules] Success! Loaded rules:", data);
       setRules(data.rules ?? []);
-    } catch {
+    } catch (err: any) {
+      console.error("[fetchRules] Error:", err);
       setError("Failed to load recurring rules.");
     } finally {
       setIsLoading(false);
@@ -64,14 +81,32 @@ export default function RecurringTasksPage() {
   }, [isAuthReady, user]);
 
   const handleDelete = async (id: string) => {
-    if (!user) return;
+    if (!user) {
+      console.log("[handleDelete] No user, skipping...");
+      return;
+    }
     try {
-      await fetch(`/api/tasks/recurring?id=${id}`, {
+      console.log("[handleDelete] Getting ID token...", { uid: user.uid, id });
+      const idToken = await user.getIdToken();
+      console.log("[handleDelete] Got ID token, sending DELETE request...");
+      
+      const res = await fetch(`/api/tasks/recurring?id=${id}`, {
         method: "DELETE",
-        headers: { "x-user-uid": user.uid },
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
+      
+      console.log("[handleDelete] Got response:", { status: res.status, ok: res.ok });
+      
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to parse error response" }));
+        throw new Error(data.error ?? "Failed to delete rule.");
+      }
+      console.log("[handleDelete] Success! Deleted rule:", id);
       setRules((prev) => prev.filter((r) => r.id !== id));
-    } catch {
+    } catch (err: any) {
+      console.error("[handleDelete] Error:", err);
       setError("Failed to delete rule.");
     }
   };
@@ -94,25 +129,34 @@ export default function RecurringTasksPage() {
       if (form.frequency === "weekly") body.dayOfWeek = form.dayOfWeek;
       if (form.frequency === "monthly") body.dayOfMonth = form.dayOfMonth;
 
+      console.log("[handleSubmit] Getting ID token...", { uid: user.uid });
+      const idToken = await user.getIdToken();
+      console.log("[handleSubmit] Got ID token, posting to API...");
+
       const res = await fetch("/api/tasks/recurring", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-uid": user.uid,
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(body),
       });
 
+      console.log("[handleSubmit] Got response:", { status: res.status, ok: res.ok });
+
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ error: "Failed to parse error response" }));
+        console.error("[handleSubmit] Error response:", data);
         throw new Error(data.error ?? "Failed to create rule.");
       }
 
       const data = await res.json();
+      console.log("[handleSubmit] Success! Created rule:", data);
       setRules((prev) => [...prev, data.rule]);
       setForm({ ...EMPTY_FORM });
       setShowForm(false);
     } catch (err: any) {
+      console.error("[handleSubmit] Exception:", err);
       setError(err.message ?? "Failed to create rule.");
     } finally {
       setSaving(false);

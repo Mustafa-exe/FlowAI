@@ -30,8 +30,10 @@ export default function TaskModal({
     dueDate: "",
     assignee: "MK",
     tags: [],
+    subtasks: [],
   });
   const [tagInput, setTagInput] = useState("");
+  const [subtaskInput, setSubtaskInput] = useState("");
 
   useEffect(() => {
     if (task) {
@@ -46,6 +48,7 @@ export default function TaskModal({
       dueDate: "",
       assignee: "MK",
       tags: [],
+      subtasks: [],
     });
   }, [task, open]);
 
@@ -150,6 +153,55 @@ export default function TaskModal({
                     <span key={`${tag}-${index}`} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-white/10">
                       #{tag}
                     </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="text-sm font-medium">Subtasks</label>
+                <input
+                  value={subtaskInput}
+                  onChange={(e) => setSubtaskInput(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && subtaskInput.trim()) {
+                      event.preventDefault();
+                      const id = Date.now().toString();
+                      setDraft((current) => ({
+                        ...current,
+                        subtasks: [...(current.subtasks || []), { id, title: subtaskInput.trim(), completed: false }],
+                      }));
+                      setSubtaskInput("");
+                    }
+                  }}
+                  placeholder="Add a subtask and press Enter"
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-white/5"
+                />
+
+                <div className="mt-2 space-y-2">
+                  {(draft.subtasks || []).map((st) => (
+                    <div key={st.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!st.completed}
+                        onChange={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            subtasks: (current.subtasks || []).map((s) => (s.id === st.id ? { ...s, completed: !s.completed } : s)),
+                          }))
+                        }
+                        className="size-4 rounded"
+                        aria-label={`Toggle ${st.title}`}
+                      />
+                      <span className={`${st.completed ? "line-through text-slate-500" : ""} text-sm`}>{st.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((current) => ({ ...current, subtasks: (current.subtasks || []).filter((s) => s.id !== st.id) }))}
+                        className="ml-auto text-xs text-rose-500"
+                        aria-label={`Remove ${st.title}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

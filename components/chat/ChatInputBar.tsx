@@ -8,10 +8,16 @@ export default function ChatInputBar({
   input,
   setInput,
   onSend,
+  disabled = false,
+  busy = false,
+  cooldownLabel,
 }: {
   input: string;
   setInput: (value: string) => void;
   onSend: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  cooldownLabel?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -83,7 +89,7 @@ export default function ChatInputBar({
     }
   };
 
-  const canSend = Boolean(input.trim());
+  const canSend = Boolean(input.trim()) && !disabled && !busy;
 
   return (
     <div className="border-t border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#0d0d0f]">
@@ -93,6 +99,9 @@ export default function ChatInputBar({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
+            if (disabled || busy) {
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               onSend();
@@ -143,6 +152,11 @@ export default function ChatInputBar({
           <ArrowUp size={16} />
         </motion.button>
       </div>
+      {cooldownLabel ? (
+        <div className="mx-auto mt-2 max-w-4xl px-1 text-xs text-slate-500 dark:text-zinc-500">
+          {cooldownLabel}
+        </div>
+      ) : null}
     </div>
   );
 }

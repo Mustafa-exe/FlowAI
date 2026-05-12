@@ -173,6 +173,20 @@ function TasksInner() {
     }
   };
 
+  const handleToggleSubtask = async (taskId: string, subtaskId: string, completed: boolean) => {
+    if (!user) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const nextSubtasks = (task.subtasks || []).map((s) => (s.id === subtaskId ? { ...s, completed } : s));
+    // optimistic UI update
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, subtasks: nextSubtasks } : t)));
+    try {
+      await updateTask(user.uid, taskId, { subtasks: nextSubtasks });
+    } catch (err) {
+      console.error("Failed to update subtask:", err);
+    }
+  };
+
   const visibleTasks = useMemo(() => {
     let next = [...tasks];
     if (priorityFilter !== "All Priorities") next = next.filter((t) => t.priority === priorityFilter);
@@ -206,18 +220,18 @@ function TasksInner() {
       <DashboardSidebar />
 
       <div className="md:pl-[72px] lg:pl-60">
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-200 pb-3 dark:border-white/10">
+          <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold tracking-[-0.03em]">Tasks</h1>
+              <h1 className="text-lg sm:text-xl font-semibold tracking-[-0.03em]">Tasks</h1>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative hidden lg:block">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <div className="relative flex-1 sm:flex-none sm:block">
                 <input value={search} onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Quick search tasks..."
-                  className="w-44 rounded-full border border-slate-200 bg-slate-50 px-8 py-1.5 text-xs outline-none dark:border-white/10 dark:bg-white/5" />
-                <span className="pointer-events-none absolute left-3 top-1.5 text-xs text-slate-400">⌕</span>
+                  placeholder="Search..."
+                  className="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs outline-none sm:w-44 sm:px-8 dark:border-white/10 dark:bg-white/5" />
+                <span className="pointer-events-none absolute left-3 top-1.5 text-xs text-slate-400 hidden sm:block">⌕</span>
               </div>
               <ThemeToggle compact />
             </div>
@@ -231,7 +245,7 @@ function TasksInner() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25 }}
-                className={`mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
+                className={`mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-xs sm:text-sm ${
                   isDark
                     ? "border-[#7c6ff7]/30 bg-[#7c6ff7]/10 text-[#c7bfff]"
                     : "border-[#2563eb]/20 bg-[#2563eb]/5 text-[#2563eb]"
@@ -252,9 +266,9 @@ function TasksInner() {
           </AnimatePresence>
 
           {/* Filters */}
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <select value={filter} onChange={(e) => handleFilterChange(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Status filter">
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Status filter">
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="in progress">In Progress</option>
@@ -262,26 +276,29 @@ function TasksInner() {
               <option value="backlog">Backlog</option>
             </select>
             <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Priority filter">
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Priority filter">
               <option>All Priorities</option>
               <option>High</option>
               <option>Medium</option>
               <option>Low</option>
             </select>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Sort tasks">
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="Sort tasks">
               <option>Due Date</option>
               <option>Priority</option>
             </select>
-            <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="More filters">
+            <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-white/10 dark:bg-[#16161a]" aria-label="More filters">
               <SlidersHorizontal size={14} />
             </button>
-            <ViewToggle view={view} onChange={setView} />
-            <button onClick={() => { setEditingTask(null); setModalOpen(true); }}
-              className="add-task-btn flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">
-              <Plus size={16} />
-              Add Task
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <ViewToggle view={view} onChange={setView} />
+              <button onClick={() => { setEditingTask(null); setModalOpen(true); }}
+                className="add-task-btn flex items-center gap-1 sm:gap-2 rounded-lg bg-[var(--color-accent)] px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white whitespace-nowrap">
+                <Plus size={14} className="sm:size-4" />
+                <span className="hidden sm:inline">Add Task</span>
+                <span className="inline sm:hidden">Add</span>
+              </button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -309,12 +326,12 @@ function TasksInner() {
               {view === "list" ? (
                 <TaskListView tasks={visibleTasks} activeFilter={filter} onFilterChange={handleFilterChange}
                   onEditTask={(task) => { setEditingTask(task); setModalOpen(true); }}
-                  onDeleteTask={handleDeleteTask} onStatusChange={handleStatusChange} />
+                  onDeleteTask={handleDeleteTask} onStatusChange={handleStatusChange} onToggleSubtask={handleToggleSubtask} />
               ) : (
                 <TaskKanbanView tasks={visibleTasks}
-                  onAdd={(status) => { setEditingTask({ id: "", title: "", description: "", priority: "Medium", status, dueDate: "", assignee: "", tags: [] }); setModalOpen(true); }}
+                  onAdd={(status) => { setEditingTask({ id: "", title: "", description: "", priority: "Medium", status, dueDate: "", assignee: "", tags: [], subtasks: [] }); setModalOpen(true); }}
                   onEdit={(task) => { setEditingTask(task); setModalOpen(true); }}
-                  onDelete={handleDeleteTask} onStatusChange={handleStatusChange} />
+                  onDelete={handleDeleteTask} onStatusChange={handleStatusChange} onToggleSubtask={handleToggleSubtask} />
               )}
             </motion.div>
           </AnimatePresence>

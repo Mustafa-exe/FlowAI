@@ -113,14 +113,14 @@ export default function IntegrationsPage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className={`rounded-2xl border p-6 ${isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"}`}
+            className={`rounded-2xl border p-4 sm:p-6 ${isDark ? "border-white/10 bg-[#16161a]" : "border-slate-200 bg-white"}`}
           >
             {/* Header row */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                 {/* Google Calendar logo */}
-                <span className="grid size-12 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
-                  <svg className="size-6" viewBox="0 0 24 24" aria-hidden="true">
+                <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 sm:size-12">
+                  <svg className="size-5 sm:size-6" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -128,19 +128,19 @@ export default function IntegrationsPage() {
                   </svg>
                 </span>
 
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold">Google Calendar</p>
                     <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">Live</span>
                   </div>
-                  <p className={`text-sm ${isDark ? "text-zinc-400" : "text-slate-500"}`}>
+                  <p className={`text-xs sm:text-sm ${isDark ? "text-zinc-400" : "text-slate-500"}`}>
                     Sync FlowAI tasks as calendar events automatically
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${
                   isGCalConnected
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                     : isDark ? "bg-white/10 text-zinc-400" : "bg-slate-100 text-slate-500"
@@ -152,7 +152,7 @@ export default function IntegrationsPage() {
                   type="button"
                   disabled={gcalLoading}
                   onClick={handleGoogleCalendar}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-60 ${
+                  className={`inline-flex items-center gap-2 rounded-full px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition disabled:opacity-60 whitespace-nowrap ${
                     isGCalConnected
                       ? "border border-rose-500/30 bg-white text-rose-500 hover:bg-rose-50 dark:bg-transparent dark:hover:bg-rose-500/10"
                       : "bg-[var(--color-accent)] text-white hover:opacity-90"
@@ -205,7 +205,7 @@ export default function IntegrationsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <button
                       type="button"
                       onClick={handleTestSync}
@@ -217,7 +217,8 @@ export default function IntegrationsPage() {
                       }`}
                     >
                       {testLoading ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
-                      Test sync
+                      <span className="hidden sm:inline">Test sync</span>
+                      <span className="inline sm:hidden">Test</span>
                     </button>
 
                     <a
@@ -226,7 +227,8 @@ export default function IntegrationsPage() {
                       rel="noopener noreferrer"
                       className={`inline-flex items-center gap-1.5 text-xs transition ${isDark ? "text-zinc-500 hover:text-zinc-300" : "text-slate-500 hover:text-slate-700"}`}
                     >
-                      Open Google Calendar
+                      <span className="hidden sm:inline">Open Google Calendar</span>
+                      <span className="inline sm:hidden">Calendar</span>
                       <ExternalLink className="size-3" />
                     </a>
                   </div>

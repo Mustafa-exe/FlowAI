@@ -35,13 +35,23 @@ export default function EventDetailPanel({
   return (
     <AnimatePresence>
       {selectedEvent ? (
-        <motion.div
-          initial={{ x: "100%", opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: "100%", opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="fixed right-0 top-0 z-30 h-full w-[360px] overflow-y-auto border-l border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#111114]"
-        >
+        <>
+          {/* Mobile backdrop overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          />
+          {/* Panel - fixed on desktop, modal overlay on mobile */}
+          <motion.div
+            initial={{ x: "100%", opacity: 0, y: "100%" }}
+            animate={{ x: 0, opacity: 1, y: 0 }}
+            exit={{ x: "100%", opacity: 0, y: "100%" }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="fixed bottom-0 left-0 right-0 z-30 max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#111114] lg:right-0 lg:bottom-auto lg:left-auto lg:top-0 lg:max-h-full lg:w-[360px] lg:rounded-t-none lg:border-l lg:border-t-0"
+          >
           <div className={`border-b border-slate-200 p-6 dark:border-white/10 ${getEventColor(selectedEvent).bg}`}>
             <div className="mb-4 flex items-center justify-between">
               <button
@@ -94,7 +104,8 @@ export default function EventDetailPanel({
               </button>
             </div>
           </div>
-        </motion.div>
+          </motion.div>
+        </>
       ) : null}
     </AnimatePresence>
   );

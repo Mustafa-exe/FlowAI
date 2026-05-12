@@ -13,6 +13,7 @@ export default function TaskListView({
   onEditTask,
   onDeleteTask,
   onStatusChange,
+  onToggleSubtask,
 }: {
   tasks: Task[];
   activeFilter: string;
@@ -20,6 +21,7 @@ export default function TaskListView({
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onStatusChange: (id: string, status: Task["status"]) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string, completed: boolean) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     Pending: false,
@@ -96,6 +98,7 @@ export default function TaskListView({
                       onEdit={() => onEditTask(task)}
                       onDelete={() => onDeleteTask(task.id)}
                       onStatusChange={onStatusChange}
+                      onToggleSubtask={onToggleSubtask}
                     />
                   ))}
                 </motion.div>

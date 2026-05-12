@@ -39,6 +39,7 @@ export default function TaskRow({
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (id: string, status: Task["status"]) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string, completed: boolean) => void;
 }) {
   return (
     <motion.div variants={rowVariants} className="w-full">
@@ -66,6 +67,18 @@ export default function TaskRow({
           >
             {task.title}
           </motion.span>
+          {/* subtasks inline */}
+          {task.subtasks && task.subtasks.length > 0 && (
+            <div className="mt-1 flex gap-2">
+              {task.subtasks.slice(0, 2).map((st) => (
+                <label key={st.id} className="inline-flex items-center gap-1 text-xs text-slate-500">
+                  <input type="checkbox" checked={st.completed} onChange={() => onToggleSubtask?.(task.id, st.id, !st.completed)} className="size-4 rounded" />
+                  <span className={st.completed ? "line-through text-slate-400" : ""}>{st.title}</span>
+                </label>
+              ))}
+              {task.subtasks.length > 2 && <span className="text-xs text-slate-400">+{task.subtasks.length - 2}</span>}
+            </div>
+          )}
           <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-500">{task.description}</p>
         </div>
         <PriorityBadge priority={task.priority} />

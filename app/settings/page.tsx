@@ -145,78 +145,82 @@ export default function SettingsPage() {
       : "opacity-0 h-0 overflow-hidden pointer-events-none";
 
   return (
-    <div className="mx-auto flex max-w-7xl gap-6 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-      <div className="hidden w-[220px] shrink-0 lg:block">
-        <div className="sticky top-6">
-          <SettingsNav />
-        </div>
-      </div>
-
-      <main className="min-w-0 flex-1">
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-slate-200 bg-[#f8fafc]/85 px-4 pb-4 pt-1 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="mx-auto max-w-[720px]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-500 dark:text-zinc-500">Settings</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-[-0.05em] sm:text-3xl">Preferences</h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-                  Manage your account, notifications, and workspace feel.
-                </p>
-              </div>
-              <div className="w-full sm:w-[280px] sm:max-w-[45%]">
-                <SearchBar onDebouncedChange={setQuery} />
-              </div>
-            </div>
+    <div className="flex w-full flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-auto lg:flex-row">
+        <div className="hidden w-[220px] shrink-0 lg:block border-r border-slate-200 dark:border-white/10">
+          <div className="sticky top-0 p-4 sm:p-6 lg:p-4">
+            <SettingsNav />
           </div>
         </div>
 
-        <motion.div variants={pageVariants} initial="hidden" animate="show" className="mx-auto max-w-[720px] space-y-5">
-          <motion.section variants={sectionVariants} id="general" className={`transition-all duration-300 ${wrapClass("general")}`}>
-            <GeneralSection
-              isLoading={isLoading}
-              values={general}
-              onChange={(patch) => { setGeneral((p) => ({ ...p, ...patch })); markDirty(); }}
-            />
-          </motion.section>
+        <main className="min-w-0 flex-1 flex flex-col">
+          {/* Sticky top bar */}
+          <div className="sticky top-0 z-20 border-b border-slate-200 bg-[#f8fafc]/85 backdrop-blur dark:border-white/10 dark:bg-[#111114]/85">
+            <div className="px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-500 dark:text-zinc-500">Settings</p>
+                  <h1 className="mt-1 text-xl font-semibold tracking-[-0.05em] sm:mt-2 sm:text-2xl md:text-3xl">Preferences</h1>
+                  <p className="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
+                    Manage your account, notifications, and workspace feel.
+                  </p>
+                </div>
+                <div className="w-full md:w-[280px] md:max-w-[45%]">
+                  <SearchBar onDebouncedChange={setQuery} />
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <motion.section variants={sectionVariants} id="notifications" className={`transition-all duration-300 ${wrapClass("notifications")}`}>
-            <NotificationsSection
-              isLoading={isLoading}
-              values={notifications}
-              onChange={(patch) => { setNotifications((p) => ({ ...p, ...patch })); markDirty(); }}
-            />
-          </motion.section>
+          <div className="flex-1 overflow-auto">
+            <motion.div variants={pageVariants} initial="hidden" animate="show" className="mx-auto max-w-[720px] space-y-5 px-4 py-4 sm:px-6 sm:py-6 pb-24">
+              <motion.section variants={sectionVariants} id="general" className={`transition-all duration-300 ${wrapClass("general")}`}>
+                <GeneralSection
+                  isLoading={isLoading}
+                  values={general}
+                  onChange={(patch) => { setGeneral((p) => ({ ...p, ...patch })); markDirty(); }}
+                />
+              </motion.section>
 
-          <motion.section variants={sectionVariants} id="working-hours" className={`transition-all duration-300 ${wrapClass("working-hours")}`}>
-            <WorkingHoursSection
-              isLoading={isLoading}
-              values={workingHours}
-              onChange={(patch) => { setWorkingHours((p) => ({ ...p, ...patch })); markDirty(); }}
-            />
-          </motion.section>
+              <motion.section variants={sectionVariants} id="notifications" className={`transition-all duration-300 ${wrapClass("notifications")}`}>
+                <NotificationsSection
+                  isLoading={isLoading}
+                  values={notifications}
+                  onChange={(patch) => { setNotifications((p) => ({ ...p, ...patch })); markDirty(); }}
+                />
+              </motion.section>
 
-          <motion.section variants={sectionVariants} id="appearance" className={`transition-all duration-300 ${wrapClass("appearance")}`}>
-            <AppearanceSection isLoading={isLoading} onDirty={markDirty} />
-          </motion.section>
+              <motion.section variants={sectionVariants} id="working-hours" className={`transition-all duration-300 ${wrapClass("working-hours")}`}>
+                <WorkingHoursSection
+                  isLoading={isLoading}
+                  values={workingHours}
+                  onChange={(patch) => { setWorkingHours((p) => ({ ...p, ...patch })); markDirty(); }}
+                />
+              </motion.section>
 
-          <motion.section variants={sectionVariants} id="integrations" className={`transition-all duration-300 ${wrapClass("integrations")}`}>
-            <IntegrationsSection
-              isLoading={isLoading}
-              values={integrations}
-              onChange={(patch) => { setIntegrations((p) => ({ ...p, ...patch })); markDirty(); }}
-            />
-          </motion.section>
+              <motion.section variants={sectionVariants} id="appearance" className={`transition-all duration-300 ${wrapClass("appearance")}`}>
+                <AppearanceSection isLoading={isLoading} onDirty={markDirty} />
+              </motion.section>
 
-          <motion.section variants={sectionVariants} id="security" className={`transition-all duration-300 ${wrapClass("security")}`}>
-            <SecuritySection
-              isLoading={isLoading}
-              values={security}
-              onChange={(patch) => { setSecurity((p) => ({ ...p, ...patch })); markDirty(); }}
-            />
-          </motion.section>
-        </motion.div>
-      </main>
+              <motion.section variants={sectionVariants} id="integrations" className={`transition-all duration-300 ${wrapClass("integrations")}`}>
+                <IntegrationsSection
+                  isLoading={isLoading}
+                  values={integrations}
+                  onChange={(patch) => { setIntegrations((p) => ({ ...p, ...patch })); markDirty(); }}
+                />
+              </motion.section>
+
+              <motion.section variants={sectionVariants} id="security" className={`transition-all duration-300 ${wrapClass("security")}`}>
+                <SecuritySection
+                  isLoading={isLoading}
+                  values={security}
+                  onChange={(patch) => { setSecurity((p) => ({ ...p, ...patch })); markDirty(); }}
+                />
+              </motion.section>
+            </motion.div>
+          </div>
+        </main>
+      </div>
 
       <AnimatePresence>
         {hasUnsavedChanges ? (

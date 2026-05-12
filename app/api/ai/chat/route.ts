@@ -55,6 +55,8 @@ are ALWAYS low priority regardless of when they are scheduled.
 
 Keep responses concise and helpful. You can also answer general productivity questions.`;
 
+const DEFAULT_RETRY_AFTER_SECONDS = 30;
+
 export async function POST(req: NextRequest) {
   const uid = req.headers.get("x-user-uid");
   if (!uid) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -142,9 +144,11 @@ export async function POST(req: NextRequest) {
       );
     }
     if (msg.includes("429") || msg.includes("quota")) {
+      const headers = new Headers();
+      headers.set("Retry-After", String(DEFAULT_RETRY_AFTER_SECONDS));
       return NextResponse.json(
-        { error: "AI rate limit reached. Please wait a moment." },
-        { status: 429 }
+        { error: "AI rate limit reached. Please wait a moment.", retryAfterSeconds: DEFAULT_RETRY_AFTER_SECONDS },
+        { status: 429, headers }
       );
     }
 

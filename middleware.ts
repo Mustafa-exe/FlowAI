@@ -47,6 +47,7 @@ export async function middleware(req: NextRequest) {
     headers.set("x-user-uid",   String(payload.uid   ?? ""));
     headers.set("x-user-email", String(payload.email ?? ""));
     headers.set("x-user-role",  String(payload.role  ?? "user"));
+    headers.set("x-firebase-token", token); // Pass token for Firestore REST API
     return NextResponse.next({ request: { headers } });
   } catch {
     // Not our JWT — try Firebase ID token
@@ -79,6 +80,7 @@ export async function middleware(req: NextRequest) {
     headers.set("x-user-uid",   uid);
     headers.set("x-user-email", email);
     headers.set("x-user-role",  String(payload.role ?? "user"));
+    headers.set("x-firebase-token", token); // Pass token for Firestore REST API
     return NextResponse.next({ request: { headers } });
   } catch {
     return NextResponse.json({ error: "Invalid token." }, { status: 401 });
